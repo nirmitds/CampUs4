@@ -532,16 +532,16 @@ if (!document.getElementById(STYLE_ID)) {
     .lout-go:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(239,68,68,0.55); }
     .lout-go:active { transform: scale(0.97); }
 
-    @media (max-width: 640px) {
-      /* hide sidebar off-screen by default on mobile */
+    @media (max-width: 768px) {
+      /* hide sidebar off-screen — slide-in drawer on ALL mobile/tablet */
       .sidebar {
         transform: translateX(-100%);
         width: 280px !important;
         z-index: 400;
         box-shadow: 4px 0 40px rgba(0,0,0,0.7);
         transition: transform 0.3s cubic-bezier(.22,1,.36,1) !important;
-        /* always show labels on mobile drawer */
         padding: 16px 10px !important;
+        top: 0 !important;
       }
       .sidebar.collapsed {
         width: 280px !important;
@@ -550,7 +550,7 @@ if (!document.getElementById(STYLE_ID)) {
       .sidebar.mobile-open {
         transform: translateX(0) !important;
       }
-      /* always show labels in mobile drawer regardless of collapsed state */
+      /* always show labels in mobile drawer */
       .sidebar .nav-label { display: block !important; }
       .sidebar .nav-sec { opacity: 1 !important; }
       .sidebar .nav-item { padding: 10px 12px !important; justify-content: flex-start !important; }
@@ -558,9 +558,7 @@ if (!document.getElementById(STYLE_ID)) {
       .sidebar .logout-label { display: block !important; }
       .sidebar .sidebar-user { padding: 10px 12px !important; justify-content: flex-start !important; }
       .sidebar .sidebar-user-info { display: block !important; }
-      /* overlay */
-      .sidebar-overlay { display: block !important; }
-      /* no left margin on mobile */
+      /* no left margin — full width content */
       .main-wrap, .main-wrap.collapsed { margin-left: 0 !important; }
       /* shrink top-bar left section */
       .top-bar-left, .top-bar-left.collapsed { width: 56px !important; min-width: 56px !important; border-right: none; }
@@ -571,9 +569,6 @@ if (!document.getElementById(STYLE_ID)) {
       .dash-page { padding-bottom: 80px !important; }
       /* notification dropdown full width on mobile */
       .notif-dropdown { width: calc(100vw - 32px); right: -8px; }
-    }
-    @media (max-width: 768px) {
-      :root { --sw: 200px; }
     }
 
     /* overlay (hidden on desktop) */
@@ -750,7 +745,7 @@ function StudentLayout() {
   const location  = useLocation();
   const [collapsed,   setCollapsed]   = useState(false);
   const [mobileOpen,  setMobileOpen]  = useState(false);
-  const [isMobile,    setIsMobile]    = useState(() => window.innerWidth <= 640);
+  const [isMobile,    setIsMobile]    = useState(() => window.innerWidth <= 768);
   const [showLogout,  setShowLogout]  = useState(false);
   const [user,        setUser]        = useState(null);
   const [notifOpen,   setNotifOpen]   = useState(false);
@@ -760,7 +755,7 @@ function StudentLayout() {
 
   /* track mobile breakpoint */
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth <= 640);
+    const check = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
@@ -950,9 +945,12 @@ function StudentLayout() {
 
       {/* ══ SIDEBAR ══ */}
       {/* mobile overlay */}
-      {mobileOpen && (
-        <div className="sidebar-overlay" onClick={() => setMobileOpen(false)} />
-      )}
+      {/* overlay — always in DOM, visible when mobileOpen */}
+      <div
+        className="sidebar-overlay"
+        style={{ display: isMobile && mobileOpen ? "block" : "none" }}
+        onClick={() => setMobileOpen(false)}
+      />
 
       <aside className={`sidebar ${!isMobile && collapsed ? "collapsed" : ""} ${isMobile && mobileOpen ? "mobile-open" : ""}`}>
         {NAV.map((item, i) =>
