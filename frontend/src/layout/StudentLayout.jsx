@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { io } from "socket.io-client";
 import axios from "axios";
 import { injectDashStyles } from "../styles/dashstyles";
+import API from "../api.js";
 
 injectDashStyles();
 

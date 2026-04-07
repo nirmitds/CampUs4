@@ -66,8 +66,8 @@ const server = http.createServer(app);
 
 const ALLOWED_ORIGINS = process.env.NODE_ENV === "production"
   ? (process.env.FRONTEND_URL
-      ? [process.env.FRONTEND_URL, /\.onrender\.com$/, /\.railway\.app$/]
-      : true)  // allow all if FRONTEND_URL not set
+      ? [process.env.FRONTEND_URL, "https://campus44.onrender.com", /\.onrender\.com$/]
+      : true)
   : ["http://localhost:5173", "http://localhost:5174"];
 
 const io     = new Server(server, {
