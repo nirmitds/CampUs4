@@ -2064,7 +2064,7 @@ app.get("/student/faculty-content", verifyToken, async (req, res) => {
 
 /* ── React Router catch-all (must be LAST route) ── */
 if (process.env.NODE_ENV === "production") {
-  app.get("*", (req, res) => {
+  app.get(/^(?!\/auth|\/admin|\/faculty|\/student|\/user|\/socket\.io).*$/, (req, res) => {
     res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
   });
 }
