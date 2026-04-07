@@ -535,20 +535,23 @@ if (!document.getElementById(STYLE_ID)) {
     @media (max-width: 768px) {
       /* hide sidebar off-screen — slide-in drawer on ALL mobile/tablet */
       .sidebar {
-        transform: translateX(-100%);
+        transform: translateX(-100%) !important;
+        animation: none !important;   /* kill sidebarIn — it overrides transform */
         width: 280px !important;
         z-index: 400;
+        top: 0 !important;
         box-shadow: 4px 0 40px rgba(0,0,0,0.7);
         transition: transform 0.3s cubic-bezier(.22,1,.36,1) !important;
         padding: 16px 10px !important;
-        top: 0 !important;
       }
       .sidebar.collapsed {
         width: 280px !important;
-        transform: translateX(-100%);
+        transform: translateX(-100%) !important;
+        animation: none !important;
       }
       .sidebar.mobile-open {
         transform: translateX(0) !important;
+        animation: none !important;
       }
       /* always show labels in mobile drawer */
       .sidebar .nav-label { display: block !important; }
