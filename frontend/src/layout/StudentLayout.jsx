@@ -769,7 +769,7 @@ function StudentLayout() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
-    axios.get("http://localhost:5000/auth/me", { headers: authHdr() })
+    axios.get(`${API}/auth/me`, { headers: authHdr() })
       .then(r => setUser(r.data.user)).catch(() => {});
   }, []);
 
@@ -777,7 +777,7 @@ function StudentLayout() {
   const fetchSummary = () => {
     const token = localStorage.getItem("token");
     if (!token) return;
-    axios.get("http://localhost:5000/chat/summary", { headers: authHdr() })
+    axios.get(`${API}/chat/summary`, { headers: authHdr() })
       .then(r => setChatSummary(r.data)).catch(() => {});
   };
 
@@ -788,7 +788,7 @@ function StudentLayout() {
 
     fetchSummary(); // initial load
 
-    const socket = io("http://localhost:5000", {
+    const socket = io(API, {
       auth: { token },
       transports: ["websocket"],
     });
