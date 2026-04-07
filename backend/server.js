@@ -48,7 +48,7 @@ async function verifyFirebaseToken(idToken) {
   });
 }
 
-const User     = require("./models/user");
+const User     = require("./models/User");
 const Request  = require("./models/Request");
 const Message  = require("./models/Message");
 const ChatSeen = require("./models/ChatSeen");
@@ -59,7 +59,7 @@ const Faculty       = require("./models/Faculty");
 const FacultyContent = require("./models/FacultyContent");
 const { DirectConversation, DirectMessage } = require("./models/DirectMessage");
 const Friendship = require("./models/Friendship");
-const { verifyToken } = require("./middleware/auth");
+const { verifyToken } = require("./middleware/Auth");
 
 const app    = express();
 const server = http.createServer(app);
