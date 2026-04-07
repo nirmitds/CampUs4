@@ -106,7 +106,7 @@ if (!document.getElementById(CHAT_STYLE)) {
   document.head.appendChild(s);
 }
 
-const API  = "http://localhost:5000";
+import API from "../api.js";
 const tok  = () => localStorage.getItem("token");
 const hdrs = () => ({ Authorization: `Bearer ${tok()}` });
 

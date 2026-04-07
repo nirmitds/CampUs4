@@ -1,54 +1,69 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import { injectDashStyles } from "../styles/dashstyles";
 injectDashStyles();
+
+import API from "../api.js";
+const tok = () => localStorage.getItem("token");
+
+function fmtDate(d) {
+  if (!d) return "";
+  return new Date(d).toLocaleDateString([], { day:"numeric", month:"short" });
+}
+
 function Doubts() {
-  const [doubts] = useState([
-    { q: "How to solve integration by parts?", subject: "Maths", ans: 3, by: "Priya", time: "2h ago" },
-    { q: "Difference between TCP and UDP?",     subject: "CS",    ans: 5, by: "Rahul", time: "5h ago" },
-    { q: "What is Heisenberg's principle?",     subject: "Physics",ans:2, by: "Ananya",time: "1d ago" },
-    { q: "How does recursion work?",            subject: "CS",    ans: 7, by: "Karan", time: "2d ago" },
-  ]);
-  const [show, setShow] = useState(false);
-  const [q, setQ] = useState("");
+  const [notices, setNotices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(null);
+
+  useEffect(() => {
+    axios.get(`${API}/student/faculty-content?type=notice`, {
+      headers: { Authorization: `Bearer ${tok()}` }
+    }).then(r => setNotices(r.data)).catch(() => setNotices([])).finally(() => setLoading(false));
+  }, []);
+
   return (
     <div className="dash-page">
-      <div className="row-between page-header">
-        <div><h1 className="page-title">💬 Doubts</h1><p className="page-sub">Ask and answer academic questions</p></div>
-        <button className="btn btn-primary" onClick={() => setShow(true)}>+ Ask Doubt</button>
+      <div className="page-header">
+        <h1 className="page-title">📢 Notices & Doubts</h1>
+        <p className="page-sub">Announcements from your faculty</p>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {doubts.map((d, i) => (
-          <div key={i} className="glass-card">
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, marginBottom: 8 }}>{d.q}</div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <span className="badge badge-blue">{d.subject}</span>
-                  <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>by @{d.by}</span>
-                  <span style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>{d.time}</span>
+
+      {loading ? (
+        <div className="glass-card" style={{ textAlign:"center", padding:48, color:"rgba(255,255,255,0.3)" }}>Loading…</div>
+      ) : notices.length === 0 ? (
+        <div className="glass-card" style={{ textAlign:"center", padding:48, color:"rgba(255,255,255,0.3)" }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>📢</div>
+          No notices posted yet.
+        </div>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {notices.map(item => (
+            <div key={item._id} className="glass-card" style={{ cursor:"pointer" }}
+              onClick={() => setExpanded(expanded===item._id ? null : item._id)}>
+              <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
+                <div style={{ width:38, height:38, borderRadius:12, background:"rgba(251,191,36,0.15)", border:"1px solid rgba(251,191,36,0.25)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>
+                  📢
                 </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:700, fontSize:14, marginBottom:4 }}>{item.title}</div>
+                  <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                    {item.subject && <span style={{ padding:"2px 8px", borderRadius:8, fontSize:11, fontWeight:600, background:"rgba(251,191,36,0.15)", color:"#fbbf24" }}>{item.subject}</span>}
+                    <span style={{ fontSize:11, color:"rgba(255,255,255,0.35)" }}>{item.facultyName || "Faculty"}</span>
+                    <span style={{ fontSize:11, color:"rgba(255,255,255,0.25)" }}>{fmtDate(item.createdAt)}</span>
+                  </div>
+                  {expanded === item._id && item.description && (
+                    <div style={{ marginTop:12, fontSize:13, color:"rgba(255,255,255,0.6)", lineHeight:1.7, whiteSpace:"pre-wrap", borderTop:"1px solid rgba(255,255,255,0.07)", paddingTop:12 }}>
+                      {item.description}
+                    </div>
+                  )}
+                </div>
+                <span style={{ color:"rgba(255,255,255,0.25)", fontSize:16, flexShrink:0 }}>
+                  {expanded===item._id ? "▲" : "▼"}
+                </span>
               </div>
-              <div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0 }}>
-                <span style={{ fontSize: 13, color: "#4ade80" }}>💬 {d.ans}</span>
-                <button className="btn btn-ghost" style={{ padding: "6px 14px", fontSize: 13 }}>Answer</button>
-              </div>
             </div>
-          </div>
-        ))}
-      </div>
-      {show && (
-        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShow(false)}>
-          <div className="modal-box">
-            <div className="modal-title">Ask a Doubt</div>
-            <div className="form-group">
-              <label className="form-label">Your Question</label>
-              <textarea className="dash-textarea" placeholder="Type your doubt clearly…" value={q} onChange={e => setQ(e.target.value)} />
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-ghost" onClick={() => setShow(false)}>Cancel</button>
-              <button className="btn btn-primary">Post Doubt</button>
-            </div>
-          </div>
+          ))}
         </div>
       )}
     </div>

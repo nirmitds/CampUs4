@@ -5,7 +5,7 @@ import { injectAuthStyles } from "../styles/authstyles";
 
 injectAuthStyles();
 
-const API = "http://localhost:5000";
+import API from "../api.js";
 
 function getStrength(pw) {
   let s = 0;

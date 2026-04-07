@@ -12,7 +12,7 @@ function Dashboard() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
-    axios.get("http://localhost:5000/auth/me", {
+    axios.get(`${API}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then(r => setUser(r.data.user)).catch(() => {});
   }, []);

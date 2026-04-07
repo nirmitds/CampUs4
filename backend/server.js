@@ -1,5 +1,12 @@
 require("dotenv").config();
 
+/* ── Override DNS to use Google (8.8.8.8 / 8.8.4.4) ──
+   Fixes: querySrv ECONNREFUSED on restricted networks
+   Must be set BEFORE any network calls (mongoose, nodemailer, etc.) */
+const dns = require("dns");
+dns.setDefaultResultOrder("ipv4first");
+dns.setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]);
+
 const express    = require("express");
 const http       = require("http");
 const { Server } = require("socket.io");
@@ -12,6 +19,7 @@ const nodemailer = require("nodemailer");
 const multer     = require("multer");
 const twilio     = require("twilio");
 const https      = require("https");
+const path       = require("path");
 
 /* ─── FIREBASE TOKEN VERIFY (no service account needed) ─── */
 async function verifyFirebaseToken(idToken) {
@@ -44,20 +52,24 @@ const User     = require("./models/user");
 const Request  = require("./models/Request");
 const Message  = require("./models/Message");
 const ChatSeen = require("./models/ChatSeen");
-const Transaction = require("./models/Transaction");
-const CoinDeposit = require("./models/CoinDeposit");
+const Transaction  = require("./models/Transaction");
+const CoinDeposit  = require("./models/CoinDeposit");
 const DeleteRequest = require("./models/DeleteRequest");
+const Faculty       = require("./models/Faculty");
+const FacultyContent = require("./models/FacultyContent");
 const { DirectConversation, DirectMessage } = require("./models/DirectMessage");
 const Friendship = require("./models/Friendship");
 const { verifyToken } = require("./middleware/auth");
 
 const app    = express();
 const server = http.createServer(app);
+
+const ALLOWED_ORIGINS = process.env.NODE_ENV === "production"
+  ? true  // allow all in production (Render serves same origin)
+  : ["http://localhost:5173", "http://localhost:5174"];
+
 const io     = new Server(server, {
-  cors: {
-    origin: ["http://localhost:5173", "http://localhost:5174"],
-    credentials: true,
-  },
+  cors: { origin: ALLOWED_ORIGINS, credentials: true },
   maxHttpBufferSize: 6 * 1024 * 1024,
 });
 
@@ -137,15 +149,26 @@ const TASKS = [
 ];
 
 app.use(cors({
-  origin: ["http://localhost:5173", "http://localhost:5174"],
+  origin: ALLOWED_ORIGINS,
   credentials: true,
 }));
 app.use(express.json({ limit: "6mb" }));
 
+/* ── Serve built React frontend in production ── */
+if (process.env.NODE_ENV === "production") {
+  const distPath = path.join(__dirname, "../frontend/dist");
+  app.use(express.static(distPath));
+}
+
 /* ─── DATABASE ─── */
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB Connected"))
-  .catch(err => console.error("❌ MongoDB Error:", err));
+  .then(() => console.log("✅ MongoDB Connected to Atlas"))
+  .catch(err => {
+    console.error("❌ MongoDB Connection Failed:", err.message);
+    console.error("   → Check: 1) Atlas Network Access (whitelist your IP)");
+    console.error("   → Check: 2) Username/password correct in MONGO_URI");
+    console.error("   → Check: 3) Not on a restricted network (try phone hotspot)");
+  });
 
 /* ══════════════════════════════════════════
    EMAIL — Gmail SMTP
@@ -1739,6 +1762,312 @@ app.put("/admin/delete-requests/:username/reject", verifyToken, adminOnly, async
     res.json({ message: `Delete request for @${username} rejected.` });
   } catch (err) { res.status(500).json({ message: "Server error" }); }
 });
+
+/* ══════════════════════════════════════════════════════
+   FACULTY ROUTES
+══════════════════════════════════════════════════════ */
+
+/* faculty JWT middleware */
+function verifyFaculty(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith("Bearer ")) return res.status(401).json({ message: "No token" });
+  try {
+    const decoded = jwt.verify(auth.split(" ")[1], process.env.JWT_SECRET);
+    if (decoded.role !== "faculty") return res.status(403).json({ message: "Faculty only" });
+    req.faculty = decoded;
+    next();
+  } catch { res.status(401).json({ message: "Invalid token" }); }
+}
+
+/* admin creates a faculty account — sends welcome email with credentials */
+app.post("/admin/faculty", verifyToken, adminOnly, async (req, res) => {
+  try {
+    const { name, facultyId, password, email, department, university, subjects, classes } = req.body;
+    if (!name || !facultyId || !password) return res.status(400).json({ message: "Name, ID and password required" });
+    if (!email) return res.status(400).json({ message: "Faculty email required" });
+
+    const existsId    = await Faculty.findOne({ facultyId });
+    if (existsId)    return res.status(400).json({ message: "Faculty ID already exists" });
+    const existsEmail = await Faculty.findOne({ email });
+    if (existsEmail) return res.status(400).json({ message: "Email already registered" });
+
+    const hashed = await bcrypt.hash(password, 10);
+    const faculty = await Faculty.create({
+      name, facultyId, password: hashed, email,
+      department, university,
+      subjects: subjects || [],
+      classes:  classes  || [],
+    });
+
+    // send welcome email with login credentials
+    if (emailReady) {
+      const classLines = (classes || []).map(c =>
+        [c.course, c.branch, c.year && `Year ${c.year}`, c.semester && `Sem ${c.semester}`, c.section && `Sec ${c.section}`]
+          .filter(Boolean).join(" · ")
+      );
+      const classHtml = classLines.length
+        ? `<div style="margin-top:10px"><span style="color:rgba(255,255,255,0.4);font-size:12px;text-transform:uppercase">Assigned Classes</span><br>${classLines.map(l => `<span style="font-size:13px">• ${l}</span>`).join("<br>")}</div>`
+        : "";
+      await transporter.sendMail({
+        from: `"CampUs 🎓" <${process.env.MAIL_USER}>`,
+        to: email,
+        subject: "Your CampUs Faculty Account is Ready",
+        html: `
+          <div style="font-family:sans-serif;max-width:480px;margin:auto;background:#0a0a1a;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(255,255,255,0.1)">
+            <div style="font-size:32px;margin-bottom:8px">👨‍🏫</div>
+            <h2 style="margin:0 0 4px;color:#22d3ee">Welcome to CampUs, ${name}!</h2>
+            <p style="color:rgba(255,255,255,0.5);margin:0 0 24px;font-size:14px">Your faculty account has been created. Use the credentials below to log in.</p>
+            <div style="background:rgba(255,255,255,0.06);border-radius:12px;padding:20px;margin-bottom:20px">
+              <div style="margin-bottom:14px">
+                <span style="color:rgba(255,255,255,0.4);font-size:11px;text-transform:uppercase;letter-spacing:1px">Faculty ID</span><br>
+                <strong style="font-size:22px;letter-spacing:3px;color:#22d3ee">${facultyId}</strong>
+              </div>
+              <div style="margin-bottom:14px">
+                <span style="color:rgba(255,255,255,0.4);font-size:11px;text-transform:uppercase;letter-spacing:1px">Password</span><br>
+                <strong style="font-size:16px;font-family:monospace;background:rgba(255,255,255,0.08);padding:4px 10px;border-radius:6px">${password}</strong>
+              </div>
+              ${department ? `<div style="margin-bottom:8px"><span style="color:rgba(255,255,255,0.4);font-size:11px;text-transform:uppercase">Department</span><br><span>${department}</span></div>` : ""}
+              ${university ? `<div style="margin-bottom:8px"><span style="color:rgba(255,255,255,0.4);font-size:11px;text-transform:uppercase">University</span><br><span>${university}</span></div>` : ""}
+              ${classHtml}
+            </div>
+            <a href="${process.env.APP_URL || "http://localhost:5173"}/faculty" style="display:block;text-align:center;background:linear-gradient(135deg,#06b6d4,#8b5cf6);color:#fff;text-decoration:none;padding:13px;border-radius:10px;font-weight:700;font-size:15px">Login to Faculty Portal →</a>
+            <p style="color:rgba(255,255,255,0.3);font-size:11px;margin-top:16px;text-align:center">Please keep these credentials safe. Contact your admin to reset your password.</p>
+          </div>
+        `
+      });
+    }
+
+    res.json({ ...faculty.toObject(), password: undefined });
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* admin lists all faculty */
+app.get("/admin/faculty", verifyToken, adminOnly, async (req, res) => {
+  try {
+    const list = await Faculty.find().select("-password").sort({ createdAt: -1 });
+    res.json(list);
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* admin updates faculty (including classes) */
+app.put("/admin/faculty/:id", verifyToken, adminOnly, async (req, res) => {
+  try {
+    const { name, email, department, university, subjects, active, password, classes, emailVerified } = req.body;
+    const update = {};
+    if (name        !== undefined) update.name        = name;
+    if (email       !== undefined) update.email       = email;
+    if (department  !== undefined) update.department  = department;
+    if (university  !== undefined) update.university  = university;
+    if (subjects    !== undefined) update.subjects    = subjects;
+    if (active      !== undefined) update.active      = active;
+    if (classes     !== undefined) update.classes     = classes;
+    if (emailVerified !== undefined) update.emailVerified = emailVerified;
+    if (password) update.password = await bcrypt.hash(password, 10);
+    const faculty = await Faculty.findByIdAndUpdate(req.params.id, update, { new: true }).select("-password");
+    res.json(faculty);
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* admin deletes faculty */
+app.delete("/admin/faculty/:id", verifyToken, adminOnly, async (req, res) => {
+  try {
+    await Faculty.findByIdAndDelete(req.params.id);
+    res.json({ message: "Faculty deleted" });
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* faculty login */
+app.post("/faculty/login", async (req, res) => {
+  try {
+    const { facultyId, password } = req.body;
+    if (!facultyId || !password) return res.status(400).json({ message: "ID/Email and password required" });
+    // allow login with either facultyId OR email
+    const faculty = await Faculty.findOne({
+      $or: [{ facultyId }, { email: facultyId }]
+    });
+    if (!faculty) return res.status(401).json({ message: "Invalid credentials" });
+    if (!faculty.active) return res.status(403).json({ message: "Account disabled. Contact admin." });
+    const match = await bcrypt.compare(password, faculty.password);
+    if (!match) return res.status(401).json({ message: "Invalid credentials" });
+    const token = jwt.sign(
+      { id: faculty._id, facultyId: faculty.facultyId, name: faculty.name, role: "faculty",
+        university: faculty.university, department: faculty.department, classes: faculty.classes },
+      process.env.JWT_SECRET, { expiresIn: "12h" }
+    );
+    res.json({ token, faculty: { ...faculty.toObject(), password: undefined } });
+  } catch (err) { res.status(500).json({ message: "Login failed" }); }
+});
+
+/* faculty — get own profile */
+app.get("/faculty/me", verifyFaculty, async (req, res) => {
+  try {
+    const faculty = await Faculty.findById(req.faculty.id).select("-password");
+    res.json(faculty);
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* faculty — send OTP to own email for verification */
+app.post("/faculty/send-verify-otp", verifyFaculty, async (req, res) => {
+  try {
+    const faculty = await Faculty.findById(req.faculty.id);
+    if (!faculty) return res.status(404).json({ message: "Faculty not found" });
+    if (faculty.emailVerified) return res.status(400).json({ message: "Email already verified" });
+    if (!faculty.email) return res.status(400).json({ message: "No email on file. Contact admin." });
+
+    const otp    = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+    faculty.otpCode   = otp;
+    faculty.otpExpiry = expiry;
+    await faculty.save();
+
+    const sent = await sendOtpEmail(faculty.email, otp);
+    if (!sent) return res.status(500).json({ message: "Failed to send OTP. Check email config." });
+    res.json({ message: `OTP sent to ${faculty.email}` });
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* faculty — verify OTP and mark email as verified */
+app.post("/faculty/verify-email", verifyFaculty, async (req, res) => {
+  try {
+    const { otp } = req.body;
+    if (!otp) return res.status(400).json({ message: "OTP required" });
+    const faculty = await Faculty.findById(req.faculty.id);
+    if (!faculty) return res.status(404).json({ message: "Faculty not found" });
+    if (faculty.emailVerified) return res.status(400).json({ message: "Already verified" });
+    if (!faculty.otpCode) return res.status(400).json({ message: "No OTP sent. Request one first." });
+    if (new Date() > faculty.otpExpiry) {
+      faculty.otpCode = null; faculty.otpExpiry = null; await faculty.save();
+      return res.status(400).json({ message: "OTP expired. Request a new one." });
+    }
+    if (faculty.otpCode !== otp.trim()) return res.status(400).json({ message: "Incorrect OTP" });
+
+    faculty.emailVerified = true;
+    faculty.otpCode   = null;
+    faculty.otpExpiry = null;
+    await faculty.save();
+    res.json({ message: "Email verified successfully" });
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* faculty — get students in their assigned classes */
+app.get("/faculty/students", verifyFaculty, async (req, res) => {
+  try {
+    const faculty = await Faculty.findById(req.faculty.id).select("university classes");
+    if (!faculty) return res.status(404).json({ message: "Faculty not found" });
+
+    const filter = { university: faculty.university };
+    if (faculty.classes?.length > 0) {
+      // match students in any of the faculty's assigned classes
+      filter.$or = faculty.classes.map(cls => {
+        const cond = {};
+        if (cls.course)   cond.course   = cls.course;
+        if (cls.branch)   cond.branch   = cls.branch;
+        if (cls.year)     cond.year     = cls.year;
+        if (cls.semester) cond.semester = cls.semester;
+        return cond;
+      });
+    }
+
+    const students = await User.find(filter)
+      .select("name username email rollNo course branch year semester avatar idVerified")
+      .sort({ name: 1 })
+      .limit(500);
+    res.json(students);
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* faculty — post content (assignment, timetable, notice, result, material) */
+app.post("/faculty/content", verifyFaculty, async (req, res) => {
+  try {
+    const { type, subject, title, description, dueDate, data, fileUrl, course, branch, year, semester, section } = req.body;
+    if (!type || !title) return res.status(400).json({ message: "Type and title required" });
+    const content = await FacultyContent.create({
+      type, subject, title, description, dueDate, data, fileUrl,
+      facultyId:   req.faculty.facultyId,
+      facultyName: req.faculty.name,
+      university:  req.faculty.university,
+      department:  req.faculty.department,
+      course:   course   || "",
+      branch:   branch   || "",
+      year:     year     || "",
+      semester: semester || "",
+      section:  section  || "",
+    });
+    res.json(content);
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* faculty — get own content */
+app.get("/faculty/content", verifyFaculty, async (req, res) => {
+  try {
+    const { type } = req.query;
+    const filter = { facultyId: req.faculty.facultyId };
+    if (type) filter.type = type;
+    const content = await FacultyContent.find(filter).sort({ createdAt: -1 });
+    res.json(content);
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* faculty — update content */
+app.put("/faculty/content/:id", verifyFaculty, async (req, res) => {
+  try {
+    const item = await FacultyContent.findOne({ _id: req.params.id, facultyId: req.faculty.facultyId });
+    if (!item) return res.status(404).json({ message: "Not found" });
+    Object.assign(item, req.body);
+    await item.save();
+    res.json(item);
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* faculty — delete content */
+app.delete("/faculty/content/:id", verifyFaculty, async (req, res) => {
+  try {
+    await FacultyContent.findOneAndDelete({ _id: req.params.id, facultyId: req.faculty.facultyId });
+    res.json({ message: "Deleted" });
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* students — get faculty content matching their class profile */
+app.get("/student/faculty-content", verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("university course branch year semester");
+    const { type } = req.query;
+    const filter = { visible: true };
+
+    // must match university
+    if (user?.university) filter.university = user.university;
+
+    // class-level matching: if content has class fields set, student must match
+    // if content fields are empty ("") it means broadcast to whole university
+    const classConditions = [];
+
+    // content with no class targeting (broadcast) — all empty fields
+    classConditions.push({ course: "", branch: "", year: "", semester: "" });
+
+    // content targeted to student's exact class
+    if (user?.course || user?.branch || user?.year || user?.semester) {
+      const exact = {};
+      if (user.course)   exact.course   = user.course;
+      if (user.branch)   exact.branch   = user.branch;
+      if (user.year)     exact.year     = user.year;
+      if (user.semester) exact.semester = user.semester;
+      classConditions.push(exact);
+    }
+
+    filter.$or = classConditions;
+    if (type) filter.type = type;
+
+    const content = await FacultyContent.find(filter).sort({ createdAt: -1 }).limit(200);
+    res.json(content);
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* ── React Router catch-all (must be LAST route) ── */
+if (process.env.NODE_ENV === "production") {
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
+  });
+}
 
 /* ─── START ─── */
 const PORT = process.env.PORT || 5000;

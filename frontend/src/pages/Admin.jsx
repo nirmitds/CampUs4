@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
-const API = "http://localhost:5000";
+import API from "../api.js";
 const tok  = () => localStorage.getItem("adminToken");
 const hdrs = () => ({ Authorization: `Bearer ${tok()}` });
 
@@ -84,6 +84,16 @@ export default function Admin() {
   const [rejectNote,   setRejectNote]   = useState("");
   const [deleteReqs,   setDeleteReqs]   = useState([]);
   const [loading,      setLoading]      = useState(false);
+  const [faculty,      setFaculty]      = useState([]);
+  const [facForm,      setFacForm]      = useState({ facultyId:"", password:"", name:"", department:"", university:"", subjects:"", classes:[], email:"" });
+  const [facMsg,       setFacMsg]       = useState("");
+  const [facSaving,    setFacSaving]    = useState(false);
+  const [showFacForm,  setShowFacForm]  = useState(false);
+  const [editingFac,   setEditingFac]   = useState(null);   // faculty object being edited
+  const [editFacForm,  setEditFacForm]  = useState({});
+  const [editFacMsg,   setEditFacMsg]   = useState("");
+  const [editFacSaving,setEditFacSaving]= useState(false);
+  const [showEditFac,  setShowEditFac]  = useState(false);
 
   useEffect(() => {
     /* check admin token */
@@ -114,6 +124,8 @@ export default function Admin() {
       try { const dr = await axios.get(`${API}/admin/delete-requests`, { headers: hdrs() }); setDeleteReqs(dr.data); } catch {}
       /* load users with idCard for ID verify tab */
       try { const wi = await axios.get(`${API}/admin/users-with-id`, { headers: hdrs() }); setUsersWithId(wi.data); } catch {}
+      /* load faculty */
+      try { const f = await axios.get(`${API}/admin/faculty`, { headers: hdrs() }); setFaculty(f.data); } catch {}
     } catch (e) {
       if (e.response?.status === 403 || e.response?.status === 401) navigate("/admin");
     } finally { setLoading(false); }
@@ -151,6 +163,7 @@ export default function Admin() {
   const NAV = [
     { id:"overview",        icon:"📊", label:"Overview"         },
     { id:"users",           icon:"👥", label:"Users"            },
+    { id:"faculty",         icon:"👨‍🏫", label:"Faculty"          },
     { id:"verify-ids",      icon:"🪪", label:`ID Verify ${pendingIds.length > 0 ? `(${pendingIds.length})` : ""}` },
     { id:"deposits",        icon:"💳", label:"Deposits"         },
     { id:"delete-requests", icon:"🗑️", label:"Delete Requests"  },
@@ -226,6 +239,295 @@ export default function Admin() {
               </div>
             )}
           </>
+        )}
+
+        {/* ── FACULTY ── */}
+        {tab === "faculty" && (
+          <>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+              <div className="admin-header" style={{ marginBottom:0 }}>👨‍🏫 Faculty ({faculty.length})</div>
+              <button className="admin-btn admin-btn-blue" onClick={() => {
+                setFacForm({ facultyId:"", password:"", name:"", department:"", university:"", subjects:"", classes:[], email:"" });
+                setFacMsg(""); setShowFacForm(true);
+              }}>+ Add Faculty</button>
+            </div>
+
+            {showFacForm && (
+              <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", backdropFilter:"blur(8px)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
+                onClick={e => e.target===e.currentTarget && setShowFacForm(false)}>
+                <div style={{ background:"#0f0f23", border:"1px solid rgba(255,255,255,0.1)", borderRadius:20, padding:28, width:"100%", maxWidth:520, maxHeight:"90vh", overflowY:"auto" }}>
+                  <div style={{ fontSize:17, fontWeight:700, marginBottom:4 }}>➕ Add Faculty Account</div>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.35)", marginBottom:18 }}>Login credentials will be emailed to the faculty automatically.</div>
+                  {facMsg && <div style={{ color: facMsg.startsWith("✅") ? "#4ade80" : "#f87171", marginBottom:12, fontSize:13, padding:"8px 12px", background: facMsg.startsWith("✅") ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)", borderRadius:8 }}>{facMsg}</div>}
+
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+                    {[
+                      ["Faculty ID *",  "facultyId",  "text",     "e.g. FAC001"],
+                      ["Password *",    "password",   "password", "Min 6 chars"],
+                      ["Full Name *",   "name",       "text",     "Dr. John Smith"],
+                      ["Email *",       "email",      "email",    "faculty@university.edu"],
+                      ["Department",    "department", "text",     "Computer Science"],
+                      ["University",    "university", "text",     "KR Mangalam University"],
+                      ["Subjects",      "subjects",   "text",     "Maths, Physics"],
+                    ].map(([label, key, type, ph]) => (
+                      <div key={key} style={{ gridColumn: key === "subjects" ? "1 / -1" : "auto" }}>
+                        <div style={{ fontSize:11, fontWeight:600, color:"rgba(255,255,255,0.45)", marginBottom:4 }}>{label}</div>
+                        <input type={type}
+                          style={{ width:"100%", padding:"9px 12px", background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.09)", borderRadius:9, fontFamily:"Outfit,sans-serif", fontSize:13, color:"#fff", outline:"none", boxSizing:"border-box" }}
+                          placeholder={ph} value={facForm[key] || ""}
+                          onChange={e => setFacForm({ ...facForm, [key]: e.target.value })} />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* class assignments */}
+                  <div style={{ marginTop:14, marginBottom:10 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                      <div style={{ fontSize:12, fontWeight:700, color:"#22d3ee" }}>📚 Assigned Classes</div>
+                      <button className="admin-btn admin-btn-blue" style={{ fontSize:11, padding:"4px 10px" }}
+                        onClick={() => setFacForm({ ...facForm, classes: [...(facForm.classes||[]), { course:"", branch:"", year:"", semester:"", section:"" }] })}>
+                        + Add Class
+                      </button>
+                    </div>
+                    {(facForm.classes||[]).length === 0 && (
+                      <div style={{ fontSize:12, color:"rgba(255,255,255,0.3)", padding:"6px 0" }}>No classes assigned yet.</div>
+                    )}
+                    {(facForm.classes||[]).map((cls, idx) => (
+                      <div key={idx} style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:10, marginBottom:8 }}>
+                        <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:6 }}>
+                          {[["Course","course","B.Tech"],["Branch","branch","CSE"],["Year","year","2"],["Sem","semester","3"],["Sec","section","A"]].map(([lbl,fld,ph]) => (
+                            <div key={fld}>
+                              <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", marginBottom:3 }}>{lbl}</div>
+                              <input style={{ width:"100%", padding:"6px 8px", background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.09)", borderRadius:7, fontFamily:"Outfit,sans-serif", fontSize:12, color:"#fff", outline:"none", boxSizing:"border-box" }}
+                                placeholder={ph} value={cls[fld]||""}
+                                onChange={e => {
+                                  const updated = [...facForm.classes];
+                                  updated[idx] = { ...updated[idx], [fld]: e.target.value };
+                                  setFacForm({ ...facForm, classes: updated });
+                                }} />
+                            </div>
+                          ))}
+                        </div>
+                        <button style={{ marginTop:6, background:"none", border:"none", color:"#f87171", fontSize:11, cursor:"pointer", fontFamily:"Outfit,sans-serif" }}
+                          onClick={() => setFacForm({ ...facForm, classes: facForm.classes.filter((_,i)=>i!==idx) })}>
+                          ✕ Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display:"flex", gap:10, marginTop:14 }}>
+                    <button className="admin-btn" style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.09)", color:"rgba(255,255,255,0.7)" }}
+                      onClick={() => setShowFacForm(false)}>Cancel</button>
+                    <button className="admin-btn admin-btn-blue" style={{ flex:1 }} disabled={facSaving}
+                      onClick={async () => {
+                        if (!facForm.facultyId || !facForm.password || !facForm.name) return setFacMsg("Faculty ID, password and name are required.");
+                        if (!facForm.email) return setFacMsg("Faculty email is required.");
+                        setFacSaving(true); setFacMsg("");
+                        try {
+                          await axios.post(`${API}/admin/faculty`, facForm, { headers: hdrs() });
+                          setFacMsg("✅ Faculty account created. Login credentials sent to their email.");
+                          setShowFacForm(false);
+                          const f = await axios.get(`${API}/admin/faculty`, { headers: hdrs() }); setFaculty(f.data);
+                        } catch (e) { setFacMsg(e.response?.data?.message || "Failed"); }
+                        finally { setFacSaving(false); }
+                      }}>
+                      {facSaving ? "Creating…" : "📧 Create & Send Credentials"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {faculty.length === 0 ? (
+              <div className="admin-card" style={{ textAlign:"center", padding:48, color:"rgba(255,255,255,0.3)" }}>
+                <div style={{ fontSize:40, marginBottom:12 }}>👨‍🏫</div>
+                No faculty accounts yet. Add one above.
+              </div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                {faculty.map(f => (
+                  <div key={f._id} className="admin-card">
+                    <div style={{ display:"flex", gap:14, alignItems:"flex-start", flexWrap:"wrap" }}>
+                      <div style={{ width:42, height:42, borderRadius:12, background:"linear-gradient(135deg,#06b6d4,#8b5cf6)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>👨‍🏫</div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap", marginBottom:4 }}>
+                          <span style={{ fontWeight:700, fontSize:15 }}>{f.name}</span>
+                          <span className="badge-sm badge-blue">{f.facultyId}</span>
+                          {f.emailVerified
+                            ? <span className="badge-sm badge-green">✅ Email Verified</span>
+                            : <span className="badge-sm badge-yellow">⚠️ Not Verified</span>
+                          }
+                          {f.active === false && <span className="badge-sm badge-red">Disabled</span>}
+                        </div>
+                        <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginBottom:6 }}>
+                          {f.email && <span style={{ marginRight:8 }}>📧 {f.email}</span>}
+                          {f.department && <span>{f.department} · </span>}
+                          {f.university && <span>{f.university}</span>}
+                        </div>
+                        {f.subjects?.length > 0 && (
+                          <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginBottom:8 }}>
+                            📖 {Array.isArray(f.subjects) ? f.subjects.join(", ") : f.subjects}
+                          </div>
+                        )}
+                        {/* classes */}
+                        {f.classes?.length > 0 && (
+                          <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                            {f.classes.map((cls, i) => (
+                              <span key={i} style={{ padding:"3px 10px", borderRadius:8, fontSize:11, fontWeight:600, background:"rgba(6,182,212,0.12)", border:"1px solid rgba(6,182,212,0.2)", color:"#22d3ee" }}>
+                                {[cls.course, cls.branch, cls.year && `Y${cls.year}`, cls.semester && `S${cls.semester}`, cls.section].filter(Boolean).join(" · ")}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {(!f.classes || f.classes.length === 0) && (
+                          <span style={{ fontSize:11, color:"rgba(255,255,255,0.25)" }}>No classes assigned</span>
+                        )}
+                      </div>
+                      <div style={{ display:"flex", gap:8, flexShrink:0, flexWrap:"wrap" }}>
+                        {/* admin can manually toggle verification */}
+                        <button
+                          className={`admin-btn ${f.emailVerified ? "admin-btn-red" : "admin-btn-green"}`}
+                          onClick={async () => {
+                            const action = f.emailVerified ? "unverify" : "verify";
+                            if (!confirm(`${f.emailVerified ? "Remove" : "Mark"} ${f.name} as verified?`)) return;
+                            try {
+                              await axios.put(`${API}/admin/faculty/${f._id}`, { emailVerified: !f.emailVerified }, { headers: hdrs() });
+                              const res = await axios.get(`${API}/admin/faculty`, { headers: hdrs() }); setFaculty(res.data);
+                            } catch (e) { alert(e.response?.data?.message || "Failed"); }
+                          }}>
+                          {f.emailVerified ? "✕ Unverify" : "✅ Verify"}
+                        </button>
+                        <button className="admin-btn admin-btn-blue"
+                          onClick={() => {
+                            setEditingFac(f);
+                            setEditFacForm({
+                              name: f.name, email: f.email||"", department: f.department||"",
+                              university: f.university||"", subjects: Array.isArray(f.subjects) ? f.subjects.join(", ") : (f.subjects||""),
+                              classes: f.classes ? JSON.parse(JSON.stringify(f.classes)) : [],
+                              password: "", active: f.active !== false,
+                            });
+                            setEditFacMsg(""); setShowEditFac(true);
+                          }}>
+                          ✏️ Edit
+                        </button>
+                        <button className="admin-btn admin-btn-red"
+                          onClick={async () => {
+                            if (!confirm(`Delete faculty ${f.name}?`)) return;
+                            try {
+                              await axios.delete(`${API}/admin/faculty/${f._id}`, { headers: hdrs() });
+                              const res = await axios.get(`${API}/admin/faculty`, { headers: hdrs() }); setFaculty(res.data);
+                            } catch (e) { alert(e.response?.data?.message || "Failed"); }
+                          }}>
+                          🗑️ Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── FACULTY EDIT MODAL ── */}
+        {showEditFac && editingFac && (
+          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", backdropFilter:"blur(8px)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
+            onClick={e => e.target===e.currentTarget && setShowEditFac(false)}>
+            <div style={{ background:"#0f0f23", border:"1px solid rgba(255,255,255,0.1)", borderRadius:20, padding:28, width:"100%", maxWidth:520, maxHeight:"90vh", overflowY:"auto" }}>
+              <div style={{ fontSize:17, fontWeight:700, marginBottom:4 }}>✏️ Edit Faculty — {editingFac.name}</div>
+              <div style={{ fontSize:12, color:"rgba(255,255,255,0.35)", marginBottom:18 }}>Leave password blank to keep existing password.</div>
+              {editFacMsg && <div style={{ color: editFacMsg.startsWith("✅") ? "#4ade80" : "#f87171", marginBottom:12, fontSize:13, padding:"8px 12px", background: editFacMsg.startsWith("✅") ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)", borderRadius:8 }}>{editFacMsg}</div>}
+
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+                {[
+                  ["Full Name *",  "name",       "text",     "Dr. John Smith"],
+                  ["Email",        "email",      "email",    "faculty@university.edu"],
+                  ["New Password", "password",   "password", "Leave blank to keep current"],
+                  ["Department",   "department", "text",     "Computer Science"],
+                  ["University",   "university", "text",     "KR Mangalam University"],
+                  ["Subjects",     "subjects",   "text",     "Maths, Physics"],
+                ].map(([label, key, type, ph]) => (
+                  <div key={key} style={{ gridColumn: key === "subjects" ? "1 / -1" : "auto" }}>
+                    <div style={{ fontSize:11, fontWeight:600, color:"rgba(255,255,255,0.45)", marginBottom:4 }}>{label}</div>
+                    <input type={type}
+                      style={{ width:"100%", padding:"9px 12px", background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.09)", borderRadius:9, fontFamily:"Outfit,sans-serif", fontSize:13, color:"#fff", outline:"none", boxSizing:"border-box" }}
+                      placeholder={ph} value={editFacForm[key] || ""}
+                      onChange={e => setEditFacForm({ ...editFacForm, [key]: e.target.value })} />
+                  </div>
+                ))}
+              </div>
+
+              {/* active toggle */}
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14, padding:"10px 14px", background:"rgba(255,255,255,0.04)", borderRadius:10, border:"1px solid rgba(255,255,255,0.07)" }}>
+                <span style={{ fontSize:13, flex:1 }}>Account Status</span>
+                <button
+                  onClick={() => setEditFacForm({ ...editFacForm, active: !editFacForm.active })}
+                  style={{ padding:"5px 16px", borderRadius:8, border:"none", fontFamily:"Outfit,sans-serif", fontSize:12, fontWeight:700, cursor:"pointer",
+                    background: editFacForm.active ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)",
+                    color: editFacForm.active ? "#4ade80" : "#f87171" }}>
+                  {editFacForm.active ? "✅ Active" : "🚫 Disabled"}
+                </button>
+              </div>
+
+              {/* class assignments */}
+              <div style={{ marginBottom:14 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:"#22d3ee" }}>📚 Assigned Classes</div>
+                  <button className="admin-btn admin-btn-blue" style={{ fontSize:11, padding:"4px 10px" }}
+                    onClick={() => setEditFacForm({ ...editFacForm, classes: [...(editFacForm.classes||[]), { course:"", branch:"", year:"", semester:"", section:"" }] })}>
+                    + Add Class
+                  </button>
+                </div>
+                {(editFacForm.classes||[]).length === 0 && (
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.3)", padding:"6px 0" }}>No classes assigned.</div>
+                )}
+                {(editFacForm.classes||[]).map((cls, idx) => (
+                  <div key={idx} style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:10, marginBottom:8 }}>
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:6 }}>
+                      {[["Course","course","B.Tech"],["Branch","branch","CSE"],["Year","year","2"],["Sem","semester","3"],["Sec","section","A"]].map(([lbl,fld,ph]) => (
+                        <div key={fld}>
+                          <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", marginBottom:3 }}>{lbl}</div>
+                          <input style={{ width:"100%", padding:"6px 8px", background:"rgba(255,255,255,0.07)", border:"1px solid rgba(255,255,255,0.09)", borderRadius:7, fontFamily:"Outfit,sans-serif", fontSize:12, color:"#fff", outline:"none", boxSizing:"border-box" }}
+                            placeholder={ph} value={cls[fld]||""}
+                            onChange={e => {
+                              const updated = [...editFacForm.classes];
+                              updated[idx] = { ...updated[idx], [fld]: e.target.value };
+                              setEditFacForm({ ...editFacForm, classes: updated });
+                            }} />
+                        </div>
+                      ))}
+                    </div>
+                    <button style={{ marginTop:6, background:"none", border:"none", color:"#f87171", fontSize:11, cursor:"pointer", fontFamily:"Outfit,sans-serif" }}
+                      onClick={() => setEditFacForm({ ...editFacForm, classes: editFacForm.classes.filter((_,i)=>i!==idx) })}>
+                      ✕ Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display:"flex", gap:10, marginTop:4 }}>
+                <button className="admin-btn" style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.09)", color:"rgba(255,255,255,0.7)" }}
+                  onClick={() => setShowEditFac(false)}>Cancel</button>
+                <button className="admin-btn admin-btn-blue" style={{ flex:1 }} disabled={editFacSaving}
+                  onClick={async () => {
+                    if (!editFacForm.name) return setEditFacMsg("Name is required.");
+                    setEditFacSaving(true); setEditFacMsg("");
+                    try {
+                      const payload = { ...editFacForm };
+                      if (!payload.password) delete payload.password; // don't send empty password
+                      await axios.put(`${API}/admin/faculty/${editingFac._id}`, payload, { headers: hdrs() });
+                      setEditFacMsg("✅ Faculty updated.");
+                      setShowEditFac(false);
+                      const f = await axios.get(`${API}/admin/faculty`, { headers: hdrs() }); setFaculty(f.data);
+                    } catch (e) { setEditFacMsg(e.response?.data?.message || "Failed"); }
+                    finally { setEditFacSaving(false); }
+                  }}>
+                  {editFacSaving ? "Saving…" : "💾 Save Changes"}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* ── USERS ── */}

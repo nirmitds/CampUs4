@@ -5,7 +5,7 @@ import { injectDashStyles } from "../styles/dashstyles";
 
 injectDashStyles();
 
-const API     = "http://localhost:5000";
+import API from "../api.js";
 const token   = () => localStorage.getItem("token");
 const headers = () => ({ Authorization: `Bearer ${token()}` });
 

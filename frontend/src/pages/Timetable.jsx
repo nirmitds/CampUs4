@@ -1,34 +1,60 @@
+import { useState, useEffect } from "react";
+import axios from "axios";
 import { injectDashStyles } from "../styles/dashstyles";
 injectDashStyles();
+
+import API from "../api.js";
+const tok = () => localStorage.getItem("token");
+
 function Timetable() {
-  const days = ["Mon","Tue","Wed","Thu","Fri","Sat"];
-  const slots = [
-    { time:"9-10",  Mon:"Physics",  Tue:"",       Wed:"CS",      Thu:"Maths",   Fri:"",        Sat:"" },
-    { time:"10-11", Mon:"",         Tue:"Chemistry",Wed:"",      Thu:"",        Fri:"CS",      Sat:"Physics" },
-    { time:"11-12", Mon:"Maths",    Tue:"",       Wed:"English", Thu:"",        Fri:"Maths",   Sat:"" },
-    { time:"2-3",   Mon:"CS Lab",   Tue:"Physics",Wed:"",        Thu:"English", Fri:"",        Sat:"" },
-    { time:"3-4",   Mon:"",         Tue:"Maths",  Wed:"Physics", Thu:"",        Fri:"Chemistry",Sat:"" },
-  ];
-  const colors = { Physics:"filled", Maths:"filled purple", CS:"filled green","CS Lab":"filled green", Chemistry:"filled yellow", English:"filled" };
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    axios.get(`${API}/student/faculty-content?type=timetable`, {
+      headers: { Authorization: `Bearer ${tok()}` }
+    }).then(r => setItems(r.data)).catch(() => setItems([])).finally(() => setLoading(false));
+  }, []);
+
   return (
     <div className="dash-page">
-      <div className="page-header"><h1 className="page-title">📅 Timetable</h1><p className="page-sub">Your weekly class schedule</p></div>
-      <div className="glass-card" style={{ overflowX: "auto" }}>
-        <div className="tt-grid">
-          <div className="tt-cell header">Time</div>
-          {days.map(d => <div key={d} className="tt-cell header">{d}</div>)}
-          {slots.map((row, i) => (
-            <>
-              <div key={i+"t"} className="tt-cell header">{row.time}</div>
-              {days.map(d => (
-                <div key={d} className={`tt-cell ${row[d] ? colors[row[d]] || "filled" : ""}`}>
-                  {row[d] || ""}
+      <div className="page-header">
+        <h1 className="page-title">📅 Timetable</h1>
+        <p className="page-sub">Posted by your faculty</p>
+      </div>
+
+      {loading ? (
+        <div className="glass-card" style={{ textAlign:"center", padding:48, color:"rgba(255,255,255,0.3)" }}>Loading…</div>
+      ) : items.length === 0 ? (
+        <div className="glass-card" style={{ textAlign:"center", padding:48, color:"rgba(255,255,255,0.3)" }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>📅</div>
+          No timetable posted yet.
+        </div>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+          {items.map(item => (
+            <div key={item._id} className="glass-card">
+              <div style={{ display:"flex", gap:10, alignItems:"flex-start", flexWrap:"wrap" }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:700, fontSize:15, marginBottom:4 }}>{item.title}</div>
+                  {item.subject && (
+                    <span style={{ display:"inline-block", padding:"2px 10px", borderRadius:10, fontSize:11, fontWeight:600, background:"rgba(139,92,246,0.15)", color:"#a78bfa", marginBottom:8 }}>
+                      {item.subject}
+                    </span>
+                  )}
+                  {item.description && (
+                    <div style={{ fontSize:13, color:"rgba(255,255,255,0.55)", lineHeight:1.6, whiteSpace:"pre-wrap" }}>{item.description}</div>
+                  )}
                 </div>
-              ))}
-            </>
+                <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", flexShrink:0 }}>
+                  {item.facultyName || "Faculty"}<br />
+                  {new Date(item.createdAt).toLocaleDateString([], { day:"numeric", month:"short" })}
+                </div>
+              </div>
+            </div>
           ))}
         </div>
-      </div>
+      )}
     </div>
   );
 }

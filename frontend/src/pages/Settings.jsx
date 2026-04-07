@@ -4,7 +4,7 @@ import axios from "axios";
 import { injectDashStyles } from "../styles/dashstyles";
 injectDashStyles();
 
-const API = "http://localhost:5000";
+import API from "../api.js";
 const tok = () => localStorage.getItem("token");
 const hdrs = () => ({ Authorization: `Bearer ${tok()}` });
 

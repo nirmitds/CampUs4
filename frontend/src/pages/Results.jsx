@@ -1,42 +1,66 @@
+import { useState, useEffect } from "react";
+import axios from "axios";
 import { injectDashStyles } from "../styles/dashstyles";
 injectDashStyles();
+
+import API from "../api.js";
+const tok = () => localStorage.getItem("token");
+
+function fmtDate(d) {
+  if (!d) return "";
+  return new Date(d).toLocaleDateString([], { day:"numeric", month:"short", year:"numeric" });
+}
+
 function Results() {
-  const results = [
-    { subject: "Physics",   marks: 82, max: 100, grade: "B+" },
-    { subject: "Maths",     marks: 91, max: 100, grade: "A"  },
-    { subject: "CS",        marks: 95, max: 100, grade: "A+" },
-    { subject: "Chemistry", marks: 74, max: 100, grade: "B"  },
-    { subject: "English",   marks: 88, max: 100, grade: "A-" },
-  ];
-  const avg = (results.reduce((a, r) => a + r.marks, 0) / results.length).toFixed(1);
-  const gc = { "A+":"badge-green","A":"badge-green","A-":"badge-blue","B+":"badge-blue","B":"badge-yellow","C":"badge-red" };
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    axios.get(`${API}/student/faculty-content?type=result`, {
+      headers: { Authorization: `Bearer ${tok()}` }
+    }).then(r => setItems(r.data)).catch(() => setItems([])).finally(() => setLoading(false));
+  }, []);
+
   return (
     <div className="dash-page">
-      <div className="page-header"><h1 className="page-title">📊 Results</h1><p className="page-sub">Your academic performance</p></div>
-      <div className="stat-grid" style={{ marginBottom: 20 }}>
-        <div className="stat-card"><span className="stat-icon">📈</span><span className="stat-val" style={{ color:"#4ade80" }}>{avg}%</span><span className="stat-label">Average Score</span></div>
-        <div className="stat-card"><span className="stat-icon">🏆</span><span className="stat-val" style={{ color:"#fbbf24" }}>8.6</span><span className="stat-label">CGPA</span></div>
-        <div className="stat-card"><span className="stat-icon">📚</span><span className="stat-val" style={{ color:"#60a5fa" }}>{results.length}</span><span className="stat-label">Subjects</span></div>
+      <div className="page-header">
+        <h1 className="page-title">📊 Results</h1>
+        <p className="page-sub">Posted by your faculty</p>
       </div>
-      <div className="glass-card">
-        <table className="dash-table">
-          <thead><tr><th>Subject</th><th>Marks</th><th>Grade</th><th>Progress</th></tr></thead>
-          <tbody>
-            {results.map((r, i) => (
-              <tr key={i}>
-                <td style={{ fontWeight: 600 }}>{r.subject}</td>
-                <td>{r.marks} / {r.max}</td>
-                <td><span className={`badge ${gc[r.grade] || "badge-blue"}`}>{r.grade}</span></td>
-                <td style={{ width: 160 }}>
-                  <div style={{ height: 6, background: "rgba(255,255,255,0.08)", borderRadius: 4, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${r.marks}%`, background: "linear-gradient(90deg,#3b82f6,#8b5cf6)", borderRadius: 4 }} />
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+
+      {loading ? (
+        <div className="glass-card" style={{ textAlign:"center", padding:48, color:"rgba(255,255,255,0.3)" }}>Loading…</div>
+      ) : items.length === 0 ? (
+        <div className="glass-card" style={{ textAlign:"center", padding:48, color:"rgba(255,255,255,0.3)" }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>📊</div>
+          No results posted yet by faculty.
+        </div>
+      ) : (
+        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+          {items.map(item => (
+            <div key={item._id} className="glass-card">
+              <div style={{ display:"flex", gap:12, alignItems:"flex-start", flexWrap:"wrap" }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:700, fontSize:15, marginBottom:6 }}>{item.title}</div>
+                  {item.subject && (
+                    <span style={{ display:"inline-block", padding:"2px 10px", borderRadius:10, fontSize:11, fontWeight:600, background:"rgba(34,197,94,0.15)", color:"#4ade80", marginBottom:8 }}>
+                      {item.subject}
+                    </span>
+                  )}
+                  {item.description && (
+                    <div style={{ fontSize:13, color:"rgba(255,255,255,0.55)", lineHeight:1.6, whiteSpace:"pre-wrap" }}>{item.description}</div>
+                  )}
+                </div>
+                <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)", flexShrink:0, textAlign:"right" }}>
+                  <div>{item.facultyName || "Faculty"}</div>
+                  {item.dueDate && <div style={{ marginTop:4, color:"#fbbf24" }}>📅 {fmtDate(item.dueDate)}</div>}
+                  <div style={{ marginTop:4 }}>{fmtDate(item.createdAt)}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

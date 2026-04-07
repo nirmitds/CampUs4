@@ -36,6 +36,8 @@ import Support     from "./pages/Support";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Admin      from "./pages/Admin";
 import AdminLogin from "./pages/AdminLogin";
+import FacultyLogin     from "./pages/FacultyLogin";
+import FacultyDashboard from "./pages/FacultyDashboard";
 
 function App() {
   return (
@@ -47,6 +49,8 @@ function App() {
         <Route path="/register"        element={<Register />} />
         <Route path="/admin"           element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<Admin />} />
+        <Route path="/faculty"           element={<FacultyLogin />} />
+        <Route path="/faculty/dashboard" element={<FacultyDashboard />} />
 
         {/* ── PROTECTED STUDENT PANEL ── */}
         <Route

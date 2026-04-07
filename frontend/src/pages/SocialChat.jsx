@@ -112,7 +112,7 @@ if (!document.getElementById(SC)) {
   document.head.appendChild(s);
 }
 
-const API = "http://localhost:5000";
+import API from "../api.js";
 const tok = () => localStorage.getItem("token");
 const hdrs = () => ({ Authorization: `Bearer ${tok()}` });
 function myName() { try { return JSON.parse(atob(tok().split(".")[1])).username; } catch { return null; } }
