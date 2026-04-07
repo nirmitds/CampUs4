@@ -15,15 +15,6 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    chunkSizeWarningLimit: 2000,  // suppress large chunk warnings (not errors)
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          axios:  ['axios'],
-          socket: ['socket.io-client'],
-        }
-      }
-    }
+    chunkSizeWarningLimit: 2000,
   }
 })
