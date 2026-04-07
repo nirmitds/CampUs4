@@ -161,13 +161,15 @@ if (process.env.NODE_ENV === "production") {
 }
 
 /* ─── DATABASE ─── */
+if (!process.env.MONGO_URI) {
+  console.error("❌ MONGO_URI is not set. Add it in Render → Environment Variables.");
+  process.exit(1);
+}
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected to Atlas"))
   .catch(err => {
     console.error("❌ MongoDB Connection Failed:", err.message);
-    console.error("   → Check: 1) Atlas Network Access (whitelist your IP)");
-    console.error("   → Check: 2) Username/password correct in MONGO_URI");
-    console.error("   → Check: 3) Not on a restricted network (try phone hotspot)");
+    process.exit(1); // crash so Render shows the real error
   });
 
 /* ══════════════════════════════════════════
