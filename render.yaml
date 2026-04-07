@@ -1,16 +1,19 @@
 services:
+  # ── Backend API (Node.js Web Service) ──────────────────────────
   - type: web
-    name: campus-app
-    runtime: docker
-    dockerfilePath: ./Dockerfile
+    name: campus-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: node server.js
     plan: free
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
-        value: 5000
+        value: 10000
       - key: MONGO_URI
-        sync: false   # set manually in Render dashboard
+        sync: false
       - key: JWT_SECRET
         sync: false
       - key: MAIL_USER
@@ -29,5 +32,20 @@ services:
         sync: false
       - key: QR_IMAGE_URL
         sync: false
-      - key: APP_URL
-        sync: false   # set to your Render URL e.g. https://campus-app.onrender.com
+      - key: FRONTEND_URL
+        sync: false   # set to your Render static site URL
+
+  # ── Frontend Static Site ────────────────────────────────────────
+  - type: web
+    name: campus-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false   # set to your backend URL e.g. https://campus-backend.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

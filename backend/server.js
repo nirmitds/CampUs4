@@ -65,7 +65,9 @@ const app    = express();
 const server = http.createServer(app);
 
 const ALLOWED_ORIGINS = process.env.NODE_ENV === "production"
-  ? true  // allow all in production (Render serves same origin)
+  ? (process.env.FRONTEND_URL
+      ? [process.env.FRONTEND_URL, /\.onrender\.com$/, /\.railway\.app$/]
+      : true)  // allow all if FRONTEND_URL not set
   : ["http://localhost:5173", "http://localhost:5174"];
 
 const io     = new Server(server, {
@@ -154,11 +156,7 @@ app.use(cors({
 }));
 app.use(express.json({ limit: "6mb" }));
 
-/* ── Serve built React frontend in production ── */
-if (process.env.NODE_ENV === "production") {
-  const distPath = path.join(__dirname, "../frontend/dist");
-  app.use(express.static(distPath));
-}
+/* ── Static file serving removed — frontend deployed separately on Render ── */
 
 /* ─── DATABASE ─── */
 if (!process.env.MONGO_URI) {
@@ -2063,13 +2061,6 @@ app.get("/student/faculty-content", verifyToken, async (req, res) => {
     res.json(content);
   } catch (err) { res.status(500).json({ message: "Server error" }); }
 });
-
-/* ── React Router catch-all (must be LAST route) ── */
-if (process.env.NODE_ENV === "production") {
-  app.get(/^(?!\/auth|\/admin|\/faculty|\/student|\/user|\/socket\.io).*$/, (req, res) => {
-    res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
-  });
-}
 
 /* ─── START ─── */
 const PORT = process.env.PORT || 5000;
