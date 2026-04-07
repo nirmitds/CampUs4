@@ -81,13 +81,17 @@ function Auth() {
       return setError("Enter a valid email address.");
     setError(""); setSuccess(""); setLoading(true);
     try {
-      const { data } = await axios.post(`${API}/auth/send-otp`, { identifier: val });
+      const { data } = await axios.post(`${API}/auth/send-otp`, { identifier: val }, { timeout: 30000 });
       setOtpSent(true);
       setDevMode(data.devMode === true);
       setSuccess(data.message);
       setCooldown(60);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to send OTP.");
+      if (err.code === "ECONNABORTED" || err.message?.includes("timeout")) {
+        setError("Server is waking up (free tier). Please wait 30s and try again.");
+      } else {
+        setError(err.response?.data?.message || "Failed to send OTP. Check backend is running.");
+      }
     } finally { setLoading(false); }
   };
 

@@ -1,4 +1,14 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
+import API from "./api.js";
+
+// Wake up the backend on app load (Render free tier spins down after inactivity)
+function useWakeBackend() {
+  useEffect(() => {
+    fetch(`${API}/ping`).catch(() => {});
+  }, []);
+}
+
 
 import Auth     from "./pages/Auth";
 import Register from "./pages/Register";
@@ -40,6 +50,7 @@ import FacultyLogin     from "./pages/FacultyLogin";
 import FacultyDashboard from "./pages/FacultyDashboard";
 
 function App() {
+  useWakeBackend();
   return (
     <BrowserRouter>
       <Routes>

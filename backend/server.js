@@ -264,6 +264,9 @@ async function sendOtpEmail(toEmail, otp) {
 
 app.get("/", (req, res) => res.send("🚀 CampUs Backend Running"));
 
+/* ── HEALTH CHECK — keeps free tier awake ── */
+app.get("/ping", (req, res) => res.json({ ok: true, t: Date.now() }));
+
 /* ── REGISTER ── */
 app.post("/auth/register", async (req, res) => {
   try {
