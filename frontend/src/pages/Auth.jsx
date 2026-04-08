@@ -36,7 +36,7 @@ function OtpBoxes({ otp, setOtp }) {
 
 function Auth() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState("password");
+  const [mode, setMode] = useState("password"); // password | otp | forgot | reset
 
   /* password */
   const [identifier, setIdentifier] = useState("");
@@ -50,6 +50,14 @@ function Auth() {
   const [cooldown, setCooldown] = useState(0);
   const [devMode,  setDevMode]  = useState(false);
 
+  /* forgot / reset password */
+  const [fpEmail,    setFpEmail]    = useState("");
+  const [fpOtp,      setFpOtp]      = useState(Array(6).fill(""));
+  const [fpOtpSent,  setFpOtpSent]  = useState(false);
+  const [fpNewPw,    setFpNewPw]    = useState("");
+  const [fpConfirm,  setFpConfirm]  = useState("");
+  const [fpCooldown, setFpCooldown] = useState(0);
+
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState("");
   const [success, setSuccess] = useState("");
@@ -59,6 +67,12 @@ function Auth() {
     const t = setTimeout(() => setCooldown(c => c - 1), 1000);
     return () => clearTimeout(t);
   }, [cooldown]);
+
+  useEffect(() => {
+    if (fpCooldown <= 0) return;
+    const t = setTimeout(() => setFpCooldown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [fpCooldown]);
 
   /* password login */
   const handlePasswordLogin = async () => {
@@ -136,12 +150,14 @@ function Auth() {
         <div className="auth-heading">Welcome back</div>
         <div className="auth-subtext">Sign in to your campus account</div>
 
-        <div className="auth-tabs">
-          <button className={`auth-tab ${mode === "password" ? "active" : ""}`}
-            onClick={() => switchMode("password")}>🔑 Password</button>
-          <button className={`auth-tab ${mode === "otp" ? "active" : ""}`}
-            onClick={() => switchMode("otp")}>📧 Email OTP</button>
-        </div>
+        {mode !== "forgot" && (
+          <div className="auth-tabs">
+            <button className={`auth-tab ${mode === "password" ? "active" : ""}`}
+              onClick={() => switchMode("password")}>🔑 Password</button>
+            <button className={`auth-tab ${mode === "otp" ? "active" : ""}`}
+              onClick={() => switchMode("otp")}>📧 Email OTP</button>
+          </div>
+        )}
 
         {error   && <div className="auth-error">⚠️ {error}</div>}
         {success && <div className="auth-success">✅ {success}</div>}
@@ -169,9 +185,72 @@ function Auth() {
                 {showPw ? "🙈" : "👁"}
               </button>
             </div>
+            <div style={{ textAlign:"right", marginBottom:12, marginTop:-4 }}>
+              <span style={{ fontSize:12, color:"#60a5fa", cursor:"pointer", fontWeight:600 }}
+                onClick={() => { setMode("forgot"); setError(""); setSuccess(""); }}>
+                Forgot password?
+              </span>
+            </div>
             <button className="auth-btn" onClick={handlePasswordLogin} disabled={loading}>
               {loading ? "Signing in…" : "Sign In →"}
             </button>
+          </>
+        )}
+
+        {/* FORGOT PASSWORD */}
+        {mode === "forgot" && (
+          <>
+            <div style={{ fontSize:15, fontWeight:700, color:"#fff", marginBottom:6 }}>🔑 Reset Password</div>
+            <p className="auth-hint" style={{ marginBottom:14 }}>Enter your registered email to receive a reset code.</p>
+            <div className="otp-send-row">
+              <input className="auth-input" placeholder="Your email address" type="email"
+                value={fpEmail} onChange={e => { setFpEmail(e.target.value); setFpOtpSent(false); setFpOtp(Array(6).fill("")); }}
+                disabled={fpOtpSent && fpCooldown > 0} />
+              <button className="send-btn"
+                disabled={loading || (fpOtpSent && fpCooldown > 0)}
+                onClick={async () => {
+                  if (!fpEmail) return setError("Enter your email.");
+                  setError(""); setSuccess(""); setLoading(true);
+                  try {
+                    const { data } = await axios.post(`${API}/auth/forgot-password`, { email: fpEmail }, { timeout: 60000 });
+                    setFpOtpSent(true); setFpCooldown(60); setSuccess(data.message);
+                  } catch (e) { setError(e.response?.data?.message || "Failed to send reset code."); }
+                  finally { setLoading(false); }
+                }}>
+                {loading ? "…" : fpCooldown > 0 ? `${fpCooldown}s` : fpOtpSent ? "Resend" : "Send Code"}
+              </button>
+            </div>
+            {fpOtpSent && (
+              <>
+                <p className="auth-hint">Enter the 6-digit code sent to <strong style={{ color:"#fff" }}>{fpEmail}</strong></p>
+                <OtpBoxes otp={fpOtp} setOtp={setFpOtp} />
+                <div className="auth-field" style={{ marginTop:12 }}>
+                  <input className="auth-input" type="password" placeholder="New password (min 6 chars)"
+                    value={fpNewPw} onChange={e => setFpNewPw(e.target.value)} />
+                </div>
+                <div className="auth-field">
+                  <input className="auth-input" type="password" placeholder="Confirm new password"
+                    value={fpConfirm} onChange={e => setFpConfirm(e.target.value)} />
+                </div>
+                <button className="auth-btn" disabled={loading}
+                  onClick={async () => {
+                    if (fpNewPw !== fpConfirm) return setError("Passwords don't match.");
+                    if (fpNewPw.length < 6) return setError("Password must be at least 6 characters.");
+                    setError(""); setLoading(true);
+                    try {
+                      const { data } = await axios.post(`${API}/auth/reset-password`, { email: fpEmail, otp: fpOtp.join(""), newPassword: fpNewPw }, { timeout: 60000 });
+                      setSuccess(data.message);
+                      setTimeout(() => { setMode("password"); setFpEmail(""); setFpOtp(Array(6).fill("")); setFpOtpSent(false); setFpNewPw(""); setFpConfirm(""); }, 2000);
+                    } catch (e) { setError(e.response?.data?.message || "Reset failed."); }
+                    finally { setLoading(false); }
+                  }}>
+                  {loading ? "Resetting…" : "Reset Password →"}
+                </button>
+              </>
+            )}
+            <p className="auth-hint" style={{ marginTop:14, textAlign:"center" }}>
+              <span style={{ color:"#60a5fa", cursor:"pointer", fontWeight:600 }} onClick={() => { setMode("password"); setError(""); setSuccess(""); }}>← Back to login</span>
+            </p>
           </>
         )}
 

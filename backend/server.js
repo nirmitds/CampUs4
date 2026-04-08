@@ -171,15 +171,16 @@ mongoose.connect(process.env.MONGO_URI)
   });
 
 /* ══════════════════════════════════════════
-   EMAIL — Gmail SMTP
-   MAIL_USER = your Gmail address
-   MAIL_PASS = Gmail App Password (16 chars)
-   Get it: myaccount.google.com → Security
-           → 2-Step Verification → App Passwords
+   EMAIL — Brevo SMTP (300 free/day) or Gmail
+   Brevo: brevo.com → SMTP & API → Generate key
+   MAIL_HOST = smtp-relay.brevo.com
+   MAIL_PORT = 587
+   MAIL_USER = your Brevo login email
+   MAIL_PASS = Brevo SMTP key
 ══════════════════════════════════════════ */
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
+  host: process.env.MAIL_HOST || "smtp.gmail.com",
+  port: parseInt(process.env.MAIL_PORT || "587"),
   secure: false,
   auth: {
     user: process.env.MAIL_USER,
@@ -191,12 +192,12 @@ const transporter = nodemailer.createTransport({
 const emailReady = !!(
   process.env.MAIL_USER &&
   process.env.MAIL_PASS &&
-  process.env.MAIL_USER !== "your_gmail@gmail.com"
+  process.env.MAIL_PASS !== "your_brevo_smtp_key_here"
 );
 
 transporter.verify((err) => {
-  if (err) console.warn("⚠️  Gmail SMTP not ready — OTPs will print to console.\n   Fix: set MAIL_USER + MAIL_PASS in .env");
-  else     console.log("📧  Gmail SMTP ready!");
+  if (err) console.warn("⚠️  SMTP not ready:", err.message);
+  else     console.log(`📧  SMTP ready via ${process.env.MAIL_HOST || "smtp.gmail.com"}!`);
 });
 
 /* ─── HELPERS ─── */
@@ -212,50 +213,48 @@ function signToken(user) {
   );
 }
 
-async function sendOtpEmail(toEmail, otp) {
+async function sendOtpEmail(toEmail, otp, type = "login") {
+  const isReset = type === "reset";
   if (!emailReady) {
     console.log("\n" + "═".repeat(44));
-    console.log(`📧  EMAIL OTP  →  ${toEmail}`);
-    console.log(`🔑  CODE       →  ${otp}`);
+    console.log(`📧  EMAIL ${isReset ? "RESET" : "OTP"}  →  ${toEmail}`);
+    console.log(`🔑  CODE  →  ${otp}`);
     console.log("═".repeat(44) + "\n");
-    return false; // not sent via email
+    return false;
   }
 
+  const subject = isReset ? `${otp} — Reset your CampUs password` : `${otp} is your CampUs login code`;
+  const heading = isReset ? "Reset your password" : "Your login code";
+  const subtext = isReset
+    ? `Use the code below to reset your password. It expires in <strong style="color:#fff;">15 minutes</strong>.`
+    : `Use the code below to sign in. It expires in <strong style="color:#fff;">10 minutes</strong>.`;
+  const footer = isReset
+    ? `If you didn't request a password reset, ignore this email.`
+    : `If you didn't request this, ignore this email. Never share this code.`;
+
   await transporter.sendMail({
-    from: `"CampUs 🎓" <${process.env.MAIL_USER}>`,
+    from: process.env.MAIL_FROM || `"CampUs 🎓" <${process.env.MAIL_USER}>`,
     to: toEmail,
-    subject: `${otp} is your CampUs login code`,
-    html: `
-      <!DOCTYPE html><html><body style="margin:0;padding:0;background:#05050f;font-family:'Segoe UI',sans-serif;">
-        <div style="max-width:480px;margin:40px auto;padding:40px 36px;
-                    background:#0f0f23;border-radius:20px;
-                    border:1px solid rgba(59,130,246,0.25);">
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;">
-            <div style="width:44px;height:44px;border-radius:12px;
-                        background:linear-gradient(135deg,#3b82f6,#8b5cf6);
-                        display:flex;align-items:center;justify-content:center;font-size:22px;">🎓</div>
-            <div>
-              <div style="font-size:18px;font-weight:800;color:#fff;">CampUs</div>
-              <div style="font-size:12px;color:rgba(255,255,255,0.35);">One-Time Password</div>
-            </div>
+    subject,
+    html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#05050f;font-family:'Segoe UI',sans-serif;">
+      <div style="max-width:480px;margin:40px auto;padding:40px 36px;background:#0f0f23;border-radius:20px;border:1px solid rgba(59,130,246,0.25);">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;">
+          <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:22px;">🎓</div>
+          <div>
+            <div style="font-size:18px;font-weight:800;color:#fff;">CampUs</div>
+            <div style="font-size:12px;color:rgba(255,255,255,0.35);">${isReset ? "Password Reset" : "One-Time Password"}</div>
           </div>
-          <h2 style="color:#fff;font-size:22px;font-weight:800;margin:0 0 10px;">Your login code</h2>
-          <p style="color:rgba(255,255,255,0.45);font-size:14px;line-height:1.7;margin:0 0 28px;">
-            Use the code below to sign in. It expires in <strong style="color:#fff;">10 minutes</strong>.
-          </p>
-          <div style="background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.3);
-                      border-radius:16px;padding:30px;text-align:center;margin-bottom:28px;">
-            <div style="font-size:50px;font-weight:900;letter-spacing:16px;color:#fff;
-                        font-family:'Courier New',monospace;">${otp}</div>
-          </div>
-          <p style="color:rgba(255,255,255,0.28);font-size:12px;text-align:center;line-height:1.6;">
-            If you didn't request this, ignore this email.<br/>Never share this code with anyone.
-          </p>
         </div>
-      </body></html>
-    `,
+        <h2 style="color:#fff;font-size:22px;font-weight:800;margin:0 0 10px;">${heading}</h2>
+        <p style="color:rgba(255,255,255,0.45);font-size:14px;line-height:1.7;margin:0 0 28px;">${subtext}</p>
+        <div style="background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.3);border-radius:16px;padding:30px;text-align:center;margin-bottom:28px;">
+          <div style="font-size:50px;font-weight:900;letter-spacing:16px;color:#fff;font-family:'Courier New',monospace;">${otp}</div>
+        </div>
+        <p style="color:rgba(255,255,255,0.28);font-size:12px;text-align:center;line-height:1.6;">${footer}</p>
+      </div>
+    </body></html>`,
   });
-  return true; // sent via email
+  return true;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -518,6 +517,52 @@ app.post("/auth/verify-otp", async (req, res) => {
     console.error(err);
     res.status(500).json({ message: "OTP verification failed" });
   }
+});
+
+/* ── FORGOT PASSWORD — send reset OTP ── */
+app.post("/auth/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email required" });
+    const user = await User.findOne({ email: email.trim().toLowerCase() });
+    if (!user) return res.status(404).json({ message: "No account found with this email" });
+
+    const otp    = generateOTP();
+    const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+    user.otpCode   = otp;
+    user.otpExpiry = expiry;
+    await user.save();
+
+    const sent = await sendOtpEmail(email, otp, "reset");
+    res.json({
+      message: sent ? `Password reset code sent to ${email}` : `Reset code generated — check server console`,
+      devMode: !sent,
+    });
+  } catch (err) { res.status(500).json({ message: "Failed: " + err.message }); }
+});
+
+/* ── RESET PASSWORD — verify OTP + set new password ── */
+app.post("/auth/reset-password", async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) return res.status(400).json({ message: "Email, OTP and new password required" });
+    if (newPassword.length < 6) return res.status(400).json({ message: "Password must be at least 6 characters" });
+
+    const user = await User.findOne({ email: email.trim().toLowerCase() });
+    if (!user)         return res.status(404).json({ message: "No account found" });
+    if (!user.otpCode) return res.status(400).json({ message: "No reset code found. Request a new one." });
+    if (new Date() > new Date(user.otpExpiry)) {
+      user.otpCode = null; user.otpExpiry = null; await user.save();
+      return res.status(400).json({ message: "Reset code expired. Request a new one." });
+    }
+    if (user.otpCode !== otp.trim()) return res.status(400).json({ message: "Incorrect code" });
+
+    user.password  = await bcrypt.hash(newPassword, 10);
+    user.otpCode   = null;
+    user.otpExpiry = null;
+    await user.save();
+    res.json({ message: "Password reset successfully. You can now log in." });
+  } catch (err) { res.status(500).json({ message: "Failed: " + err.message }); }
 });
 
 /* ── VERIFY SESSION ── */
