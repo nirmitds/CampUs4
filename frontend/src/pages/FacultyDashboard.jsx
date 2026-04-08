@@ -14,15 +14,29 @@ if (!document.getElementById(STYLE_ID)) {
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #03030d; font-family: 'Outfit', sans-serif; color: #fff; }
-    .fac-shell { display: flex; min-height: 100vh; }
-    .fac-sidebar { width: 220px; flex-shrink: 0; background: rgba(5,5,18,0.95); border-right: 1px solid rgba(255,255,255,0.07); display: flex; flex-direction: column; padding: 20px 12px; position: fixed; top: 0; bottom: 0; left: 0; overflow-y: auto; }
-    .fac-brand { font-size: 16px; font-weight: 800; color: #fff; padding: 0 8px 20px; border-bottom: 1px solid rgba(255,255,255,0.07); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+    .fac-shell { display: flex; min-height: 100vh; flex-direction: column; }
+    .fac-body  { display: flex; flex: 1; }
+    .fac-topbar {
+      height: 56px; background: rgba(5,5,18,0.97);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 16px; position: sticky; top: 0; z-index: 300; flex-shrink: 0;
+    }
+    .fac-hamburger {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px; color: #fff; width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 18px; flex-shrink: 0;
+    }
+    .fac-sidebar { width: 220px; flex-shrink: 0; background: rgba(5,5,18,0.97); border-right: 1px solid rgba(255,255,255,0.07); display: flex; flex-direction: column; padding: 16px 10px; position: fixed; top: 56px; bottom: 0; left: 0; overflow-y: auto; z-index: 200; transition: transform 0.3s cubic-bezier(.22,1,.36,1); }
+    .fac-brand { font-size: 15px; font-weight: 800; color: #fff; padding: 0 8px 16px; border-bottom: 1px solid rgba(255,255,255,0.07); margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
     .fac-nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; cursor: pointer; font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.45); transition: all 0.15s; margin-bottom: 2px; border: none; background: none; width: 100%; text-align: left; }
     .fac-nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
-    .fac-nav-item.active { background: rgba(6,182,212,0.15); color: #22d3ee; border-left: 2px solid #06b6d4; }
-    .fac-main { margin-left: 220px; flex: 1; padding: 28px; min-height: 100vh; }
-    .fac-header { font-size: 22px; font-weight: 800; margin-bottom: 24px; }
-    .fac-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+    .fac-nav-item.active { background: rgba(6,182,212,0.15); color: #22d3ee; border-left: 3px solid #06b6d4; }
+    .fac-main { margin-left: 220px; flex: 1; padding: 24px; min-height: calc(100vh - 56px); }
+    .fac-header { font-size: 20px; font-weight: 800; margin-bottom: 20px; }
+    .fac-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 18px; margin-bottom: 14px; }
     .fac-input { width: 100%; padding: 11px 14px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.09); border-radius: 10px; font-family: Outfit,sans-serif; font-size: 14px; color: #fff; outline: none; transition: border-color 0.2s; }
     .fac-input:focus { border-color: rgba(6,182,212,0.5); }
     .fac-input::placeholder { color: rgba(255,255,255,0.28); }
@@ -42,18 +56,15 @@ if (!document.getElementById(STYLE_ID)) {
     .fac-badge-purple { background: rgba(139,92,246,0.15); color: #a78bfa; }
     .fac-badge-yellow { background: rgba(251,191,36,0.15); color: #fbbf24; }
     .fac-badge-green { background: rgba(34,197,94,0.15); color: #4ade80; }
-    .fac-stat { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 18px; }
-    .fac-stat-val { font-size: 28px; font-weight: 800; }
+    .fac-stat { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 16px; }
+    .fac-stat-val { font-size: 26px; font-weight: 800; }
     .fac-stat-label { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 4px; }
-    .fac-topbar { display: none; align-items: center; gap: 12px; padding: 14px 16px; background: rgba(5,5,18,0.97); border-bottom: 1px solid rgba(255,255,255,0.07); position: sticky; top: 0; z-index: 100; }
-    .fac-hamburger { background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; padding: 4px; line-height: 1; }
-    .fac-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150; }
+    .fac-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); z-index: 190; }
     @media (max-width: 768px) {
-      .fac-sidebar { transform: translateX(-100%) !important; animation: none !important; z-index: 400; width: 260px !important; box-shadow: 4px 0 40px rgba(0,0,0,0.7); transition: transform 0.3s cubic-bezier(.22,1,.36,1) !important; }
-      .fac-sidebar.open { transform: translateX(0) !important; }
-      .fac-main { margin-left: 0; padding: 16px; }
-      .fac-topbar { display: flex; }
-      .fac-overlay.show { display: block; }
+      .fac-sidebar { transform: translateX(-100%); top: 56px; width: 260px !important; box-shadow: 4px 0 40px rgba(0,0,0,0.8); }
+      .fac-sidebar.open { transform: translateX(0); }
+      .fac-main { margin-left: 0 !important; padding: 14px; }
+      .fac-overlay { display: block; }
     }
   `;
   document.head.appendChild(s);
@@ -162,50 +173,56 @@ export default function FacultyDashboard() {
 
   return (
     <div className="fac-shell">
-      {/* mobile overlay */}
-      <div className={`fac-overlay ${sideOpen?"show":""}`} onClick={() => setSideOpen(false)} />
-
-      {/* sidebar */}
-      <div className={`fac-sidebar ${sideOpen?"open":""}`}>
-        <div className="fac-brand">
-          <span style={{ fontSize:22 }}>👨‍🏫</span>
-          <div>
-            <div>Faculty Portal</div>
-            <div style={{ fontSize:10, color:"rgba(255,255,255,0.35)", fontWeight:400 }}>CampUs</div>
-          </div>
-        </div>
-
-        <button className={`fac-nav-item ${tab==="overview"?"active":""}`} onClick={() => { setTab("overview"); setSideOpen(false); }}>📊 Overview</button>
-        {CONTENT_TYPES.map(t => (
-          <button key={t.id} className={`fac-nav-item ${tab===t.id?"active":""}`} onClick={() => { setTab(t.id); setSideOpen(false); }}>
-            {t.icon} {t.label.split(" ").slice(1).join(" ")}
-            {counts[t.id] > 0 && <span style={{ marginLeft:"auto", background:"rgba(6,182,212,0.2)", color:"#22d3ee", borderRadius:8, padding:"1px 6px", fontSize:10, fontWeight:800 }}>{counts[t.id]}</span>}
-          </button>
-        ))}
-        <button className={`fac-nav-item ${tab==="students"?"active":""}`} onClick={() => { setTab("students"); setSideOpen(false); }}>
-          👥 Students
-          {students.length > 0 && <span style={{ marginLeft:"auto", background:"rgba(139,92,246,0.2)", color:"#a78bfa", borderRadius:8, padding:"1px 6px", fontSize:10, fontWeight:800 }}>{students.length}</span>}
-        </button>
-
-        <div style={{ marginTop:"auto", paddingTop:16, borderTop:"1px solid rgba(255,255,255,0.07)" }}>
-          <div style={{ padding:"8px 12px", fontSize:12, color:"rgba(255,255,255,0.35)", marginBottom:6 }}>
-            {faculty?.name || "Faculty"}<br />
-            <span style={{ fontSize:10 }}>{faculty?.department} · {faculty?.university}</span>
-          </div>
-          <button className="fac-nav-item" style={{ color:"rgba(239,68,68,0.6)" }} onClick={() => { localStorage.removeItem("facultyToken"); localStorage.removeItem("facultyName"); navigate("/faculty"); }}>
-            🚪 Logout
-          </button>
-        </div>
-      </div>
-
-      {/* mobile topbar */}
+      {/* ── TOPBAR (always visible) ── */}
       <div className="fac-topbar">
         <button className="fac-hamburger" onClick={() => setSideOpen(o => !o)}>☰</button>
         <span style={{ fontWeight:700, fontSize:15 }}>👨‍🏫 Faculty Portal</span>
+        <div style={{ marginLeft:"auto", fontSize:12, color:"rgba(255,255,255,0.4)" }}>
+          {faculty?.name || "Faculty"}
+        </div>
       </div>
 
-      {/* main */}
-      <div className="fac-main">
+      <div className="fac-body">
+        {/* overlay */}
+        <div className="fac-overlay"
+          style={{ opacity: sideOpen ? 1 : 0, pointerEvents: sideOpen ? "auto" : "none", transition:"opacity 0.3s" }}
+          onClick={() => setSideOpen(false)} />
+
+        {/* sidebar */}
+        <div className={`fac-sidebar ${sideOpen?"open":""}`}>
+          <div className="fac-brand">
+            <span style={{ fontSize:20 }}>👨‍🏫</span>
+            <div>
+              <div>Faculty Portal</div>
+              <div style={{ fontSize:10, color:"rgba(255,255,255,0.35)", fontWeight:400 }}>CampUs</div>
+            </div>
+          </div>
+
+          <button className={`fac-nav-item ${tab==="overview"?"active":""}`} onClick={() => { setTab("overview"); setSideOpen(false); }}>📊 Overview</button>
+          {CONTENT_TYPES.map(t => (
+            <button key={t.id} className={`fac-nav-item ${tab===t.id?"active":""}`} onClick={() => { setTab(t.id); setSideOpen(false); }}>
+              {t.icon} {t.label.split(" ").slice(1).join(" ")}
+              {counts[t.id] > 0 && <span style={{ marginLeft:"auto", background:"rgba(6,182,212,0.2)", color:"#22d3ee", borderRadius:8, padding:"1px 6px", fontSize:10, fontWeight:800 }}>{counts[t.id]}</span>}
+            </button>
+          ))}
+          <button className={`fac-nav-item ${tab==="students"?"active":""}`} onClick={() => { setTab("students"); setSideOpen(false); }}>
+            👥 Students
+            {students.length > 0 && <span style={{ marginLeft:"auto", background:"rgba(139,92,246,0.2)", color:"#a78bfa", borderRadius:8, padding:"1px 6px", fontSize:10, fontWeight:800 }}>{students.length}</span>}
+          </button>
+
+          <div style={{ marginTop:"auto", paddingTop:16, borderTop:"1px solid rgba(255,255,255,0.07)" }}>
+            <div style={{ padding:"8px 12px", fontSize:11, color:"rgba(255,255,255,0.35)", marginBottom:6 }}>
+              {faculty?.department && <div>{faculty.department}</div>}
+              {faculty?.university && <div style={{ fontSize:10 }}>{faculty.university}</div>}
+            </div>
+            <button className="fac-nav-item" style={{ color:"rgba(239,68,68,0.6)" }} onClick={() => { localStorage.removeItem("facultyToken"); localStorage.removeItem("facultyName"); navigate("/faculty"); }}>
+              🚪 Logout
+            </button>
+          </div>
+        </div>
+
+        {/* main */}
+        <div className="fac-main">
 
         {/* ── EMAIL VERIFY BANNER ── */}
         {faculty && !faculty.emailVerified && (
@@ -505,6 +522,7 @@ export default function FacultyDashboard() {
             )}
           </>
         )}
+        </div>
       </div>
     </div>
   );

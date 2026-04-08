@@ -17,15 +17,38 @@ if (!document.getElementById(ADMIN_STYLE)) {
   s.textContent = `
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #03030d; font-family: 'Outfit', sans-serif; color: #fff; }
-    .admin-shell { display: flex; min-height: 100vh; }
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+
+    /* ── Shell ── */
+    .admin-shell { display: flex; min-height: 100vh; flex-direction: column; }
+    .admin-body  { display: flex; flex: 1; }
+
+    /* ── Topbar ── */
+    .admin-topbar {
+      height: 56px; background: rgba(5,5,18,0.97);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      display: flex; align-items: center; gap: 12px;
+      padding: 0 16px; position: sticky; top: 0; z-index: 300;
+      flex-shrink: 0;
+    }
+    .admin-hbg {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px; color: #fff; width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 18px; flex-shrink: 0;
+    }
+    .admin-topbar-title { font-size: 15px; font-weight: 700; color: #fff; }
+
+    /* ── Sidebar ── */
     .admin-sidebar {
       width: 220px; flex-shrink: 0; background: rgba(5,5,18,0.97);
       border-right: 1px solid rgba(255,255,255,0.07);
-      display: flex; flex-direction: column; padding: 20px 12px;
-      position: fixed; top: 0; bottom: 0; left: 0; overflow-y: auto; z-index: 300;
+      display: flex; flex-direction: column; padding: 16px 10px;
+      position: fixed; top: 56px; bottom: 0; left: 0;
+      overflow-y: auto; z-index: 200;
       transition: transform 0.3s cubic-bezier(.22,1,.36,1);
     }
-    .admin-brand { font-size: 18px; font-weight: 800; color: #fff; padding: 0 8px 20px; border-bottom: 1px solid rgba(255,255,255,0.07); margin-bottom: 16px; }
+    .admin-brand { font-size: 16px; font-weight: 800; color: #fff; padding: 0 8px 16px; border-bottom: 1px solid rgba(255,255,255,0.07); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
     .admin-nav-item {
       display: flex; align-items: center; gap: 10px;
       padding: 10px 12px; border-radius: 10px; cursor: pointer;
@@ -33,22 +56,30 @@ if (!document.getElementById(ADMIN_STYLE)) {
       transition: all 0.15s; margin-bottom: 2px; border: none; background: none; width: 100%; text-align: left;
     }
     .admin-nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
-    .admin-nav-item.active { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.2); }
-    .admin-main { margin-left: 220px; flex: 1; padding: 28px; min-height: 100vh; }
-    .admin-topbar { display: none; align-items: center; gap: 12px; padding: 14px 16px; background: rgba(5,5,18,0.97); border-bottom: 1px solid rgba(255,255,255,0.07); position: sticky; top: 0; z-index: 200; }
-    .admin-hbg { background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; padding: 4px; line-height: 1; }
-    .admin-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 250; }
-    .admin-header { font-size: 22px; font-weight: 800; margin-bottom: 24px; }
-    .stat-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; margin-bottom: 28px; }
-    .stat-box { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 18px; }
-    .stat-box-val { font-size: 28px; font-weight: 800; }
+    .admin-nav-item.active { background: rgba(59,130,246,0.15); color: #60a5fa; border-left: 3px solid #3b82f6; }
+
+    /* ── Main ── */
+    .admin-main { margin-left: 220px; flex: 1; padding: 24px; min-height: calc(100vh - 56px); }
+
+    /* ── Overlay ── */
+    .admin-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+      z-index: 190;
+    }
+
+    /* ── Content styles ── */
+    .admin-header { font-size: 20px; font-weight: 800; margin-bottom: 20px; }
+    .stat-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat-box { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 16px; }
+    .stat-box-val { font-size: 26px; font-weight: 800; }
     .stat-box-label { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 4px; }
     .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     .admin-table th { text-align: left; padding: 10px 12px; font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.07); }
-    .admin-table td { padding: 12px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+    .admin-table td { padding: 11px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
     .admin-table tr:last-child td { border-bottom: none; }
     .admin-table tr:hover td { background: rgba(255,255,255,0.02); }
-    .admin-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+    .admin-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 18px; margin-bottom: 14px; }
     .badge-sm { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
     .badge-green  { background: rgba(34,197,94,0.15);  color: #4ade80; }
     .badge-yellow { background: rgba(251,191,36,0.15); color: #fbbf24; }
@@ -62,13 +93,18 @@ if (!document.getElementById(ADMIN_STYLE)) {
     .admin-btn-red   { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); color: #f87171; }
     .admin-btn-blue  { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; }
     .id-img { width: 100%; max-height: 240px; object-fit: contain; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.4); }
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+
+    /* ── Mobile ── */
     @media (max-width: 768px) {
-      .admin-sidebar { transform: translateX(-100%) !important; animation: none !important; width: 260px !important; box-shadow: 4px 0 40px rgba(0,0,0,0.7); }
-      .admin-sidebar.open { transform: translateX(0) !important; }
-      .admin-main { margin-left: 0 !important; padding: 16px; }
-      .admin-topbar { display: flex; }
+      .admin-sidebar {
+        transform: translateX(-100%);
+        top: 56px; width: 260px !important;
+        box-shadow: 4px 0 40px rgba(0,0,0,0.8);
+      }
+      .admin-sidebar.open { transform: translateX(0); }
+      .admin-main { margin-left: 0 !important; padding: 14px; }
       .admin-overlay { display: block; }
+      .stat-row { grid-template-columns: repeat(2, 1fr); }
     }
   `;
   document.head.appendChild(s);
@@ -181,49 +217,51 @@ export default function Admin() {
 
   return (
     <div className="admin-shell">
-      {/* mobile overlay */}
-      <div className="admin-overlay" style={{ opacity: sideOpen ? 1 : 0, pointerEvents: sideOpen ? "auto" : "none", transition:"opacity 0.3s" }}
-        onClick={() => setSideOpen(false)} />
-
-      {/* sidebar */}
-      <div className={`admin-sidebar ${sideOpen ? "open" : ""}`}>
-        <div className="admin-brand">🎓 CampUs Admin</div>
-        {NAV.map(n => (
-          <button key={n.id} className={`admin-nav-item ${tab===n.id?"active":""}`}
-            onClick={() => { setTab(n.id); setSideOpen(false); }}>
-            <span>{n.icon}</span> {n.label}
-          </button>
-        ))}
-        <div style={{ marginTop:"auto", paddingTop:16, borderTop:"1px solid rgba(255,255,255,0.07)" }}>
-          <div style={{ padding:"8px 12px", fontSize:12, color:"rgba(255,255,255,0.35)", marginBottom:6 }}>
-            Signed in as <strong style={{ color:"rgba(255,255,255,0.7)" }}>{localStorage.getItem("adminName") || "Admin"}</strong>
-          </div>
-          <button className="admin-nav-item" onClick={() => {
-            const studentToken = localStorage.getItem("token");
-            if (studentToken) navigate("/student");
-            else navigate("/");
-          }}>
-            🏠 Student App
-          </button>
-          <button className="admin-nav-item" style={{ color:"rgba(239,68,68,0.6)" }} onClick={() => {
-            localStorage.removeItem("adminToken");
-            localStorage.removeItem("adminName");
-            navigate("/admin");
-          }}>
-            🚪 Logout
-          </button>
+      {/* ── TOPBAR (always visible) ── */}
+      <div className="admin-topbar">
+        <button className="admin-hbg" onClick={() => setSideOpen(o => !o)}>☰</button>
+        <span className="admin-topbar-title">🎓 CampUs Admin</span>
+        <div style={{ marginLeft:"auto", fontSize:12, color:"rgba(255,255,255,0.4)" }}>
+          {localStorage.getItem("adminName") || "Admin"}
         </div>
       </div>
 
-      {/* mobile topbar */}
-      <div className="admin-topbar">
-        <button className="admin-hbg" onClick={() => setSideOpen(o => !o)}>☰</button>
-        <span style={{ fontWeight:700, fontSize:15 }}>🎓 CampUs Admin</span>
-      </div>
+      <div className="admin-body">
+        {/* mobile overlay */}
+        <div className="admin-overlay"
+          style={{ opacity: sideOpen ? 1 : 0, pointerEvents: sideOpen ? "auto" : "none", transition:"opacity 0.3s" }}
+          onClick={() => setSideOpen(false)} />
 
-      {/* main */}
-      <div className="admin-main">
-        {loading && <div style={{ color:"rgba(255,255,255,0.4)", marginBottom:16 }}>Loading…</div>}
+        {/* sidebar */}
+        <div className={`admin-sidebar ${sideOpen ? "open" : ""}`}>
+          <div className="admin-brand">🎓 CampUs Admin</div>
+          {NAV.map(n => (
+            <button key={n.id} className={`admin-nav-item ${tab===n.id?"active":""}`}
+              onClick={() => { setTab(n.id); setSideOpen(false); }}>
+              <span>{n.icon}</span> {n.label}
+            </button>
+          ))}
+          <div style={{ marginTop:"auto", paddingTop:16, borderTop:"1px solid rgba(255,255,255,0.07)" }}>
+            <button className="admin-nav-item" onClick={() => {
+              const studentToken = localStorage.getItem("token");
+              if (studentToken) navigate("/student");
+              else navigate("/");
+            }}>
+              🏠 Student App
+            </button>
+            <button className="admin-nav-item" style={{ color:"rgba(239,68,68,0.6)" }} onClick={() => {
+              localStorage.removeItem("adminToken");
+              localStorage.removeItem("adminName");
+              navigate("/admin");
+            }}>
+              🚪 Logout
+            </button>
+          </div>
+        </div>
+
+        {/* main content */}
+        <div className="admin-main">
+          {loading && <div style={{ color:"rgba(255,255,255,0.4)", marginBottom:16 }}>Loading…</div>}
 
         {/* ── OVERVIEW ── */}
         {tab === "overview" && stats && (
@@ -931,6 +969,7 @@ export default function Admin() {
             })()}
           </>
         )}
+        </div>
       </div>
     </div>
   );
