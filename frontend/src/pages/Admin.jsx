@@ -19,10 +19,11 @@ if (!document.getElementById(ADMIN_STYLE)) {
     body { background: #03030d; font-family: 'Outfit', sans-serif; color: #fff; }
     .admin-shell { display: flex; min-height: 100vh; }
     .admin-sidebar {
-      width: 220px; flex-shrink: 0; background: rgba(5,5,18,0.95);
+      width: 220px; flex-shrink: 0; background: rgba(5,5,18,0.97);
       border-right: 1px solid rgba(255,255,255,0.07);
       display: flex; flex-direction: column; padding: 20px 12px;
-      position: fixed; top: 0; bottom: 0; left: 0;
+      position: fixed; top: 0; bottom: 0; left: 0; overflow-y: auto; z-index: 300;
+      transition: transform 0.3s cubic-bezier(.22,1,.36,1);
     }
     .admin-brand { font-size: 18px; font-weight: 800; color: #fff; padding: 0 8px 20px; border-bottom: 1px solid rgba(255,255,255,0.07); margin-bottom: 16px; }
     .admin-nav-item {
@@ -34,6 +35,9 @@ if (!document.getElementById(ADMIN_STYLE)) {
     .admin-nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
     .admin-nav-item.active { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.2); }
     .admin-main { margin-left: 220px; flex: 1; padding: 28px; min-height: 100vh; }
+    .admin-topbar { display: none; align-items: center; gap: 12px; padding: 14px 16px; background: rgba(5,5,18,0.97); border-bottom: 1px solid rgba(255,255,255,0.07); position: sticky; top: 0; z-index: 200; }
+    .admin-hbg { background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; padding: 4px; line-height: 1; }
+    .admin-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 250; }
     .admin-header { font-size: 22px; font-weight: 800; margin-bottom: 24px; }
     .stat-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; margin-bottom: 28px; }
     .stat-box { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 18px; }
@@ -51,7 +55,7 @@ if (!document.getElementById(ADMIN_STYLE)) {
     .badge-red    { background: rgba(239,68,68,0.15);  color: #f87171; }
     .badge-blue   { background: rgba(59,130,246,0.15); color: #60a5fa; }
     .badge-gray   { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.4); }
-    .admin-search { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.09); border-radius: 10px; padding: 9px 14px; color: #fff; font-family: Outfit,sans-serif; font-size: 13px; outline: none; width: 260px; }
+    .admin-search { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.09); border-radius: 10px; padding: 9px 14px; color: #fff; font-family: Outfit,sans-serif; font-size: 13px; outline: none; width: 100%; max-width: 260px; }
     .admin-search::placeholder { color: rgba(255,255,255,0.28); }
     .admin-btn { padding: 6px 14px; border-radius: 8px; font-family: Outfit,sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
     .admin-btn-green { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3); color: #4ade80; }
@@ -60,8 +64,11 @@ if (!document.getElementById(ADMIN_STYLE)) {
     .id-img { width: 100%; max-height: 240px; object-fit: contain; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.4); }
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
     @media (max-width: 768px) {
-      .admin-sidebar { display: none; }
-      .admin-main { margin-left: 0; padding: 16px; }
+      .admin-sidebar { transform: translateX(-100%) !important; animation: none !important; width: 260px !important; box-shadow: 4px 0 40px rgba(0,0,0,0.7); }
+      .admin-sidebar.open { transform: translateX(0) !important; }
+      .admin-main { margin-left: 0 !important; padding: 16px; }
+      .admin-topbar { display: flex; }
+      .admin-overlay { display: block; }
     }
   `;
   document.head.appendChild(s);
@@ -70,6 +77,7 @@ if (!document.getElementById(ADMIN_STYLE)) {
 export default function Admin() {
   const navigate = useNavigate();
   const [tab,          setTab]          = useState("overview");
+  const [sideOpen,     setSideOpen]     = useState(false);
   const [stats,        setStats]        = useState(null);
   const [users,        setUsers]        = useState([]);
   const [requests,     setRequests]     = useState([]);
@@ -173,12 +181,16 @@ export default function Admin() {
 
   return (
     <div className="admin-shell">
+      {/* mobile overlay */}
+      <div className="admin-overlay" style={{ opacity: sideOpen ? 1 : 0, pointerEvents: sideOpen ? "auto" : "none", transition:"opacity 0.3s" }}
+        onClick={() => setSideOpen(false)} />
+
       {/* sidebar */}
-      <div className="admin-sidebar">
+      <div className={`admin-sidebar ${sideOpen ? "open" : ""}`}>
         <div className="admin-brand">🎓 CampUs Admin</div>
         {NAV.map(n => (
           <button key={n.id} className={`admin-nav-item ${tab===n.id?"active":""}`}
-            onClick={() => setTab(n.id)}>
+            onClick={() => { setTab(n.id); setSideOpen(false); }}>
             <span>{n.icon}</span> {n.label}
           </button>
         ))}
@@ -187,7 +199,6 @@ export default function Admin() {
             Signed in as <strong style={{ color:"rgba(255,255,255,0.7)" }}>{localStorage.getItem("adminName") || "Admin"}</strong>
           </div>
           <button className="admin-nav-item" onClick={() => {
-            /* only go to student app if a student token exists */
             const studentToken = localStorage.getItem("token");
             if (studentToken) navigate("/student");
             else navigate("/");
@@ -202,6 +213,12 @@ export default function Admin() {
             🚪 Logout
           </button>
         </div>
+      </div>
+
+      {/* mobile topbar */}
+      <div className="admin-topbar">
+        <button className="admin-hbg" onClick={() => setSideOpen(o => !o)}>☰</button>
+        <span style={{ fontWeight:700, fontSize:15 }}>🎓 CampUs Admin</span>
       </div>
 
       {/* main */}

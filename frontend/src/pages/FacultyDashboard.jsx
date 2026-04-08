@@ -49,8 +49,8 @@ if (!document.getElementById(STYLE_ID)) {
     .fac-hamburger { background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; padding: 4px; line-height: 1; }
     .fac-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150; }
     @media (max-width: 768px) {
-      .fac-sidebar { transform: translateX(-100%); transition: transform 0.25s; z-index: 200; }
-      .fac-sidebar.open { transform: translateX(0); }
+      .fac-sidebar { transform: translateX(-100%) !important; animation: none !important; z-index: 400; width: 260px !important; box-shadow: 4px 0 40px rgba(0,0,0,0.7); transition: transform 0.3s cubic-bezier(.22,1,.36,1) !important; }
+      .fac-sidebar.open { transform: translateX(0) !important; }
       .fac-main { margin-left: 0; padding: 16px; }
       .fac-topbar { display: flex; }
       .fac-overlay.show { display: block; }
