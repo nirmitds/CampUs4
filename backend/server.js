@@ -2067,4 +2067,16 @@ app.get("/student/faculty-content", verifyToken, async (req, res) => {
 
 /* ─── START ─── */
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`\n🚀 CampUs running → http://localhost:${PORT}\n`));
+server.listen(PORT, () => {
+  console.log(`\n🚀 CampUs running → http://localhost:${PORT}\n`);
+
+  // Self-ping every 14 min to prevent Render free tier from sleeping
+  if (process.env.NODE_ENV === "production" && process.env.RENDER_EXTERNAL_URL) {
+    const pingUrl = `${process.env.RENDER_EXTERNAL_URL}/ping`;
+    setInterval(() => {
+      const mod = process.env.RENDER_EXTERNAL_URL.startsWith("https") ? require("https") : require("http");
+      mod.get(pingUrl, (r) => console.log(`🏓 Self-ping ${r.statusCode}`)).on("error", () => {});
+    }, 14 * 60 * 1000); // every 14 minutes
+    console.log(`🏓 Self-ping enabled → ${pingUrl}`);
+  }
+});
