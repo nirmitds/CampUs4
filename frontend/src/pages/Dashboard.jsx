@@ -84,7 +84,7 @@ function Dashboard() {
           <span className="stat-label">Campus Coins</span>
         </div>
         <div className="stat-card" style={{ cursor: "pointer" }} onClick={() => navigate("/student/messages")}>
-          <span className="stat-icon">�</span>
+          <span className="stat-icon">💬</span>
           <span className="stat-val" style={{ color: totalUnread > 0 ? "#f87171" : "#60a5fa" }}>
             {totalUnread > 0 ? totalUnread : chats.length}
           </span>
