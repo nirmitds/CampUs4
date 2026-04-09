@@ -1,4 +1,4 @@
-*, *::before, *::after {
+﻿*, *::before, *::after {
   box-sizing: border-box;
 }
 
@@ -11,7 +11,7 @@ html, body {
 
 body {
   background: #05050f;
-  font-family: 'Outfit', system-ui, sans-serif;
+  font-family: 'Outfit', 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', system-ui, sans-serif;
   color: #fff;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -33,4 +33,11 @@ h1, h2, h3, h4, h5, h6, p {
   font-weight: inherit;
   color: inherit;
   line-height: inherit;
+}
+
+/* Ensure emoji render correctly on all platforms */
+@font-face {
+  font-family: 'NotoEmoji';
+  src: url('https://fonts.gstatic.com/s/notocoloremoji/v25/Yq6P-KqIXTD0t4D9z1ESnKM3-HpFab5s79iz64w.woff2') format('woff2');
+  font-display: swap;
 }

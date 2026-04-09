@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -284,7 +284,7 @@ export default function Admin() {
                 ["✅","Accepted",        stats.acceptedRequests, "#fbbf24"],
                 ["💬","Messages",        stats.messages,         "#22d3ee"],
                 ["💰","Transactions",    stats.transactions,     "#f472b6"],
-                ["🪙","Total Coins",     stats.totalCoins,       "#fbbf24"],
+                ["💰","Total Coins",     stats.totalCoins,       "#fbbf24"],
                 ["🪪","Pending IDs",     stats.pendingId,        "#f87171"],
               ].map(([icon, label, val, color]) => (
                 <div key={label} className="stat-box">
@@ -704,7 +704,7 @@ export default function Admin() {
                       </td>
                       <td style={{ color:"rgba(255,255,255,0.5)", fontSize:12 }}>{u.email}</td>
                       <td style={{ fontSize:12 }}>{u.university || <span style={{ color:"rgba(255,255,255,0.25)" }}>—</span>}</td>
-                      <td style={{ color:"#fbbf24", fontWeight:700 }}>🪙 {u.coins}</td>
+                      <td style={{ color:"#fbbf24", fontWeight:700 }}>💰 {u.coins}</td>
                       <td>
                         <span className={`badge-sm ${u.idVerified==="verified"?"badge-green":u.idVerified==="pending"?"badge-yellow":u.idVerified==="rejected"?"badge-red":"badge-gray"}`}>
                           {u.idVerified || "none"}
@@ -895,7 +895,7 @@ export default function Admin() {
                             {d.status}
                           </span>
                           <span className="badge-sm badge-blue">₹{d.inr}</span>
-                          <span className="badge-sm" style={{ background:"rgba(251,191,36,0.15)", color:"#fbbf24" }}>🪙 {d.coins}</span>
+                          <span className="badge-sm" style={{ background:"rgba(251,191,36,0.15)", color:"#fbbf24" }}>💰 {d.coins}</span>
                         </div>
                         <div style={{ fontWeight:700, fontSize:15, marginBottom:4 }}>@{d.username}</div>
                         <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", marginBottom:4 }}>
@@ -926,7 +926,7 @@ export default function Admin() {
                                 alert(data.message); loadAll();
                               } catch (e) { alert(e.response?.data?.message || "Failed"); }
                             }}>
-                            ✅ Approve & Credit {d.coins} 🪙
+                            ✅ Approve & Credit {d.coins} 💰
                           </button>
                           <div style={{ display:"flex", gap:6 }}>
                             <input
@@ -1036,7 +1036,7 @@ export default function Admin() {
                       <td style={{ fontSize:12 }}>@{r.ownerUsername}</td>
                       <td style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{r.ownerUniversity || "—"}</td>
                       <td style={{ fontSize:12, color:"rgba(255,255,255,0.4)" }}>{r.acceptedBy ? `@${r.acceptedBy}` : "—"}</td>
-                      <td style={{ color:"#fbbf24", fontWeight:700 }}>{r.coins > 0 ? `🪙 ${r.coins}` : "Free"}</td>
+                      <td style={{ color:"#fbbf24", fontWeight:700 }}>{r.coins > 0 ? `💰 ${r.coins}` : "Free"}</td>
                       <td><span className={`badge-sm ${r.status==="Open"?"badge-green":r.status==="Accepted"?"badge-yellow":"badge-gray"}`}>{r.status}</span></td>
                       <td style={{ fontSize:12, color:"rgba(255,255,255,0.4)" }}>{fmtDate(r.createdAt)}</td>
                     </tr>
@@ -1092,8 +1092,8 @@ export default function Admin() {
                         <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{txs.length} transaction{txs.length!==1?"s":""}</div>
                       </div>
                       <div style={{ display:"flex", gap:12, fontSize:13 }}>
-                        <span style={{ color:"#4ade80", fontWeight:700 }}>+{totalCredit} 🪙</span>
-                        {totalDebit > 0 && <span style={{ color:"#f87171", fontWeight:700 }}>-{totalDebit} 🪙</span>}
+                        <span style={{ color:"#4ade80", fontWeight:700 }}>+{totalCredit} 💰</span>
+                        {totalDebit > 0 && <span style={{ color:"#f87171", fontWeight:700 }}>-{totalDebit} 💰</span>}
                       </div>
                       <span style={{ color:"rgba(255,255,255,0.3)", fontSize:18 }}>⌄</span>
                     </summary>
@@ -1108,7 +1108,7 @@ export default function Admin() {
                               <td><span className="badge-sm badge-blue">{t.category}</span></td>
                               <td><span className={`badge-sm ${t.type==="credit"?"badge-green":"badge-red"}`}>{t.type}</span></td>
                               <td style={{ fontWeight:700, color: t.type==="credit"?"#4ade80":"#f87171" }}>
-                                {t.type==="credit"?"+":"-"}{t.amount} 🪙
+                                {t.type==="credit"?"+":"-"}{t.amount} 💰
                               </td>
                               <td style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{fmtDate(t.createdAt)}</td>
                             </tr>

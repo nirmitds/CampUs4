@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+﻿import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { injectDashStyles } from "../styles/dashstyles";
@@ -119,7 +119,7 @@ function UserGroupCard({ group, me, myUni, onAccept, onDelete, onChat }) {
                       <span className="badge badge-blue" style={{ fontSize:11 }}>{r.type}</span>
                       <span className="badge badge-purple" style={{ fontSize:11 }}>{r.category}</span>
                       <span className={`badge ${r.status==="Open"?"badge-green":"badge-yellow"}`} style={{ fontSize:11 }}>{r.status}</span>
-                      {r.coins > 0 && <span className="badge" style={{ background:"rgba(251,191,36,0.15)", color:"#fbbf24", fontSize:11 }}>🪙 {r.coins}</span>}
+                      {r.coins > 0 && <span className="badge" style={{ background:"rgba(251,191,36,0.15)", color:"#fbbf24", fontSize:11 }}>💰 {r.coins}</span>}
                       {isLatest && <span style={{ fontSize:10, color:"rgba(255,255,255,0.3)", alignSelf:"center" }}>Latest</span>}
                     </div>
                     <div style={{ fontWeight:700, fontSize:14, marginBottom:3 }}>{r.title}</div>
@@ -131,7 +131,7 @@ function UserGroupCard({ group, me, myUni, onAccept, onDelete, onChat }) {
                   <div style={{ display:"flex", gap:6, flexWrap:"wrap", justifyContent:"flex-end", flexShrink:0 }}>
                     {r.status==="Open" && !isOwner && (
                       <button className="btn btn-success" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onAccept(r)}>
-                        Accept{r.coins>0?` · 🪙 ${r.coins}`:""}
+                        Accept{r.coins>0?` · 💰 ${r.coins}`:""}
                       </button>
                     )}
                     {r.status==="Accepted" && (isOwner||isAcceptor) && (
@@ -157,7 +157,7 @@ function UserGroupCard({ group, me, myUni, onAccept, onDelete, onChat }) {
           <div style={{ padding:"0 16px 12px", display:"flex", gap:6, justifyContent:"flex-end" }}>
             {r.status==="Open" && !isOwner && (
               <button className="btn btn-success" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onAccept(r)}>
-                Accept{r.coins>0?` · 🪙 ${r.coins}`:""}
+                Accept{r.coins>0?` · 💰 ${r.coins}`:""}
               </button>
             )}
             {r.status==="Accepted" && (isOwner||isAcceptor) && (
@@ -391,7 +391,7 @@ export default function Exchange() {
               {acceptModal.coins > 0 ? (
                 <div style={{ background:"rgba(251,191,36,0.1)", border:"1px solid rgba(251,191,36,0.3)", borderRadius:12, padding:"14px 16px", marginBottom:14 }}>
                   <div style={{ fontSize:13, color:"rgba(255,255,255,0.5)", marginBottom:4 }}>Cost to accept</div>
-                  <div style={{ fontSize:24, fontWeight:800, color:"#fbbf24" }}>🪙 {acceptModal.coins} coins</div>
+                  <div style={{ fontSize:24, fontWeight:800, color:"#fbbf24" }}>💰 {acceptModal.coins} coins</div>
                   <div style={{ fontSize:12, color:"rgba(255,255,255,0.35)", marginTop:4 }}>Deducted from your wallet</div>
                 </div>
               ) : (
@@ -404,7 +404,7 @@ export default function Exchange() {
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setAcceptModal(null)}>Cancel</button>
               <button className="btn btn-primary" onClick={handleAcceptConfirm} disabled={accepting}>
-                {accepting ? "Accepting…" : `Accept${acceptModal.coins>0?` · 🪙 ${acceptModal.coins}`:""}`}
+                {accepting ? "Accepting…" : `Accept${acceptModal.coins>0?` · 💰 ${acceptModal.coins}`:""}`}
               </button>
             </div>
           </div>
@@ -441,7 +441,7 @@ export default function Exchange() {
                 </div>
               </div>
               <div className="form-group">
-                <label className="form-label">Coin Price 🪙 <span style={{ color:"rgba(255,255,255,0.3)", fontWeight:400 }}>(0 = free)</span></label>
+                <label className="form-label">Coin Price 💰 <span style={{ color:"rgba(255,255,255,0.3)", fontWeight:400 }}>(0 = free)</span></label>
                 <input className="dash-input" type="number" min="0" placeholder="0"
                   value={form.coins} onChange={e => setForm({...form, coins:e.target.value})} />
               </div>

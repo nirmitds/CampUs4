@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+﻿import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import axios from "axios";
@@ -128,7 +128,7 @@ function BargainCard({ bargain, isOwner, onAccept, onReject }) {
   return (
     <div className={`bargain-card ${bargain.status}`}>
       <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginBottom:5 }}>💰 Bargain from @{bargain.offeredBy}</div>
-      <div style={{ fontSize:22, fontWeight:800, color:"#fbbf24", marginBottom:5 }}>🪙 {bargain.coins} coins</div>
+      <div style={{ fontSize:22, fontWeight:800, color:"#fbbf24", marginBottom:5 }}>💰 {bargain.coins} coins</div>
       <div style={{ fontSize:12, color:colors[bargain.status], marginBottom: bargain.status==="pending"&&isOwner?10:0 }}>{labels[bargain.status]}</div>
       {bargain.status === "pending" && isOwner && (
         <div style={{ display:"flex", gap:8 }}>
@@ -462,7 +462,7 @@ export default function ExchangeChat() {
             </div>
           </div>
           <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
-            {request.coins > 0 && <span className="badge" style={{ background:"rgba(251,191,36,0.12)", color:"#fbbf24", fontSize:11 }}>🪙 {request.coins}</span>}
+            {request.coins > 0 && <span className="badge" style={{ background:"rgba(251,191,36,0.12)", color:"#fbbf24", fontSize:11 }}>💰 {request.coins}</span>}
             <span className="badge badge-yellow" style={{ fontSize:11 }}>{request.status}</span>
           </div>
         </div>
@@ -514,7 +514,7 @@ export default function ExchangeChat() {
       {showBargain && isAcceptor && (
         <div className="bargain-panel">
           <span style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>Counter-offer:</span>
-          <input className="bargain-input" type="number" min="0" placeholder={`${request.coins} 🪙`}
+          <input className="bargain-input" type="number" min="0" placeholder={`${request.coins} 💰`}
             value={bargainCoins} onChange={e => setBargainCoins(e.target.value)}
             onKeyDown={e => e.key==="Enter" && handleSendBargain()} />
           <button className="cab" style={{ background:"linear-gradient(135deg,#f59e0b,#d97706)", color:"#fff" }}

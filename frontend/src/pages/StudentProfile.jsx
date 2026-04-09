@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useRef, useState } from "react";
 import Cropper from "react-easy-crop";
 import axios from "axios";
 import { injectDashStyles } from "../styles/dashstyles";
@@ -225,7 +225,7 @@ export default function StudentProfile() {
             </div>
             {completion < 100 && (
               <div style={{ fontSize:12, color:"rgba(255,255,255,0.35)", marginTop:6 }}>
-                Complete your profile to earn the <strong style={{ color:"#fbbf24" }}>+20 🪙 bonus</strong>
+                Complete your profile to earn the <strong style={{ color:"#fbbf24" }}>+20 💰 bonus</strong>
               </div>
             )}
           </div>
@@ -287,7 +287,7 @@ export default function StudentProfile() {
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                 <Field icon="📧" label="Email"  value={user.email} />
                 <Field icon="📱" label="Phone"  value={user.phone} />
-                <Field icon="🪙" label="Coins"  value={`${user.coins} Coins`} />
+                <Field icon="💰" label="Coins"  value={`${user.coins} Coins`} />
                 <Field icon="🎓" label="Role"   value={user.role} />
                 {user.bio && <Field icon="💬" label="Bio" value={user.bio} />}
               </div>

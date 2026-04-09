@@ -8,6 +8,17 @@
     <meta name="theme-color" content="#4f46e5" />
     <meta name="description" content="CampUs — Connecting Students, Empowering Success." />
     <title>CampUs</title>
+    <!-- Noto Emoji font — fixes question mark boxes on Windows/Linux -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Emoji&display=swap" rel="stylesheet" />
+    <style>
+      /* Force emoji font fallback for all elements */
+      * {
+        font-family: 'Outfit', 'Noto Emoji', 'Apple Color Emoji', 'Segoe UI Emoji',
+                     'Segoe UI Symbol', 'Noto Color Emoji', sans-serif;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

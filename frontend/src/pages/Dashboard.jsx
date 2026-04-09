@@ -59,8 +59,8 @@ function Dashboard() {
     { icon: "📋", title: "Assignments", sub: "Track assignments",      path: "/student/assignments" },
     { icon: "📅", title: "Timetable",   sub: "Your class schedule",    path: "/student/timetable" },
     { icon: "📊", title: "Results",     sub: "Check your grades",      path: "/student/results" },
-    { icon: "�", title: "Exchange",    sub: "Buy/sell with students", path: "/student/exchange" },
-    { icon: "�💰", title: "Wallet",      sub: "Your campus coins",      path: "/student/wallet" },
+    { icon: "🔄", title: "Exchange",    sub: "Buy/sell with students", path: "/student/exchange" },
+    { icon: "💰", title: "Wallet",      sub: "Your campus coins",      path: "/student/wallet" },
     { icon: "💬", title: "Messages",    sub: "Your chats",             path: "/student/messages" },
     { icon: "🚨", title: "Emergency",   sub: "Quick emergency help",   path: "/student/emergency" },
   ];

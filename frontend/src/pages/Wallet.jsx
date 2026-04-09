@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+﻿import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import axios from "axios";
@@ -313,7 +313,7 @@ export default function Wallet() {
                           <div style={{ position:"absolute", top:-8, left:"50%", transform:"translateX(-50%)", background: pkg.id==="pack_10" ? "linear-gradient(135deg,#22c55e,#16a34a)" : "linear-gradient(135deg,#3b82f6,#8b5cf6)", color:"#fff", fontSize:8, fontWeight:800, padding:"2px 8px", borderRadius:8, whiteSpace:"nowrap" }}>{pkg.badge}</div>
                         )}
                         {unavailable && <div style={{ position:"absolute", top:-8, left:"50%", transform:"translateX(-50%)", background:"rgba(255,255,255,0.15)", color:"rgba(255,255,255,0.6)", fontSize:8, fontWeight:800, padding:"2px 8px", borderRadius:8 }}>USED</div>}
-                        <div style={{ fontSize:20, fontWeight:900, color: pkg.id==="pack_10"?"#4ade80":"#fbbf24", marginBottom:2 }}>🪙 {pkg.coins}</div>
+                        <div style={{ fontSize:20, fontWeight:900, color: pkg.id==="pack_10"?"#4ade80":"#fbbf24", marginBottom:2 }}>💰 {pkg.coins}</div>
                         <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginBottom:4 }}>{pkg.label}</div>
                         <div style={{ fontSize:16, fontWeight:800 }}>₹{pkg.inr}</div>
                         {buyBusy===pkg.id && <div style={{ fontSize:11, color:"#60a5fa", marginTop:4 }}>Creating…</div>}
@@ -363,7 +363,7 @@ export default function Wallet() {
                     <div style={{ background:"rgba(251,191,36,0.1)", border:"1px solid rgba(251,191,36,0.3)", borderRadius:12, padding:"12px 16px", textAlign:"center", marginBottom:14 }}>
                       <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>Pay exactly</div>
                       <div style={{ fontSize:28, fontWeight:900, color:"#fbbf24" }}>₹{deposit.deposit.inr}</div>
-                      <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)" }}>to receive 🪙 {deposit.deposit.coins} coins</div>
+                      <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)" }}>to receive 💰 {deposit.deposit.coins} coins</div>
                     </div>
 
                     {/* UTR input */}
@@ -401,7 +401,7 @@ export default function Wallet() {
                 value={xferTo} onChange={e => setXferTo(e.target.value.replace("@",""))} />
             </div>
             <div className="form-group">
-              <label className="form-label">Amount 🪙</label>
+              <label className="form-label">Amount 💰</label>
               <input className="dash-input" type="number" min="1" placeholder="0"
                 value={xferAmt} onChange={e => setXferAmt(e.target.value)} />
             </div>
@@ -430,12 +430,12 @@ export default function Wallet() {
       <div className="wallet-hero">
         <div style={{ fontSize:13, color:"rgba(255,255,255,0.4)", marginBottom:8 }}>Total Balance</div>
         <div className={`wallet-balance ${flash ? "coin-flash" : ""}`}>
-          🪙 {coins ?? "—"}
+          💰 {coins ?? "—"}
         </div>
         <div className="wallet-label">Campus Coins</div>
         {availableTasks.length > 0 && (
           <div style={{ fontSize:12, color:"#fbbf24", marginTop:8, opacity:0.8 }}>
-            +{totalEarnable} 🪙 available to earn right now
+            +{totalEarnable} 💰 available to earn right now
           </div>
         )}
         <div style={{ display:"flex", gap:10, justifyContent:"center", marginTop:20, flexWrap:"wrap" }}>
@@ -500,13 +500,13 @@ export default function Wallet() {
               </div>
             ) : txs.slice(0,6).map((t,i) => (
               <div key={t._id || i} className="tx-row">
-                <div className={`tx-icon ${t.type}`}>{TX_ICONS[t.category] || "🪙"}</div>
+                <div className={`tx-icon ${t.type}`}>{TX_ICONS[t.category] || "💰"}</div>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div className="tx-desc">{t.description}</div>
                   <div className="tx-date">{fmtDate(t.createdAt)}</div>
                 </div>
                 <div className={`tx-amt ${t.type}`}>
-                  {t.type==="credit" ? "+" : "-"}{t.amount} 🪙
+                  {t.type==="credit" ? "+" : "-"}{t.amount} 💰
                 </div>
               </div>
             ))}
@@ -558,7 +558,7 @@ export default function Wallet() {
                           Day {t.streakDay}
                         </div>
                         <div style={{ fontSize:10, fontWeight:800, color: isClaimed ? "#4ade80" : isDoneToday ? "#60a5fa" : isToday ? "#fbbf24" : "rgba(255,255,255,0.25)" }}>
-                          +{t.coins}🪙
+                          +{t.coins}💰
                         </div>
                         {isToday && taskBusy === t.id && <div style={{ fontSize:9, color:"#60a5fa" }}>…</div>}
                         {isDoneToday && <div style={{ fontSize:8, color:"rgba(255,255,255,0.3)" }}>Tomorrow</div>}
@@ -603,7 +603,7 @@ export default function Wallet() {
                       </div>
                     )}
                   </div>
-                  <div className="task-earn">+{task.coins} 🪙</div>
+                  <div className="task-earn">+{task.coins} 💰</div>
                   <button
                     className={`task-btn ${task.canDo ? "available" : "done"}`}
                     disabled={!task.canDo || taskBusy === task.id}
@@ -628,13 +628,13 @@ export default function Wallet() {
             </div>
           ) : txs.map((t,i) => (
             <div key={t._id || i} className="tx-row">
-              <div className={`tx-icon ${t.type}`}>{TX_ICONS[t.category] || "🪙"}</div>
+              <div className={`tx-icon ${t.type}`}>{TX_ICONS[t.category] || "💰"}</div>
               <div style={{ flex:1, minWidth:0 }}>
                 <div className="tx-desc">{t.description}</div>
                 <div className="tx-date">{fmtDate(t.createdAt)} · {t.category}</div>
               </div>
               <div className={`tx-amt ${t.type}`}>
-                {t.type==="credit" ? "+" : "-"}{t.amount} 🪙
+                {t.type==="credit" ? "+" : "-"}{t.amount} 💰
               </div>
             </div>
           ))}

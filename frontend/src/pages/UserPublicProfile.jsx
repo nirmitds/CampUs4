@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { injectDashStyles } from "../styles/dashstyles";
@@ -147,7 +147,7 @@ export default function UserPublicProfile() {
           <div className="section-title">📊 Stats</div>
           <div style={{ display:"flex", gap:12 }}>
             <div style={{ flex:1, textAlign:"center", padding:"12px 0" }}>
-              <div style={{ fontSize:22, fontWeight:800, color:"#fbbf24" }}>🪙 {user.coins}</div>
+              <div style={{ fontSize:22, fontWeight:800, color:"#fbbf24" }}>💰 {user.coins}</div>
               <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", marginTop:4 }}>Campus Coins</div>
             </div>
             <div style={{ flex:1, textAlign:"center", padding:"12px 0", borderLeft:"1px solid rgba(255,255,255,0.07)" }}>

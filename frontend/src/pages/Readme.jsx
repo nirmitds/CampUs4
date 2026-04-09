@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { injectDashStyles } from "../styles/dashstyles";
 injectDashStyles();
@@ -23,7 +23,7 @@ const SECTIONS = [
       ["📷 Profile Photo", "Upload, crop, and edit your avatar. Max 5MB. Supports JPG, PNG, WEBP."],
       ["🏫 Academic Info", "Add university, roll number, course, branch, year, semester, and bio."],
       ["🪪 ID Card", "Upload your university ID card for admin verification. Status: Not Uploaded / Pending / Verified / Rejected."],
-      ["📊 Completion Bar", "Shows how complete your profile is. Complete it to earn +20 🪙 bonus coins."],
+      ["📊 Completion Bar", "Shows how complete your profile is. Complete it to earn +20 💰 bonus coins."],
     ],
   },
   {
@@ -49,7 +49,7 @@ const SECTIONS = [
   {
     id: "wallet", icon: "💰", title: "Wallet & Coins",
     items: [
-      ["🪙 Campus Coins", "Every student starts with 100 coins. Used for exchange requests."],
+      ["💰 Campus Coins", "Every student starts with 100 coins. Used for exchange requests."],
       ["⚡ Earn Coins", "Complete tasks: Daily Login (+5), Complete Profile (+20), Surveys (+25-30), Watch Ads (+8-10), Refer Friends (+50), Share Notes (+20)."],
       ["💸 Transfer", "Send coins to any student by username with an optional note."],
       ["📜 History", "Full transaction log: credits, debits, categories, timestamps."],

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { injectDashStyles } from "../styles/dashstyles";
@@ -77,7 +77,7 @@ export default function MyRequests() {
                     </span>
                     {r.coins > 0 && (
                       <span className="badge" style={{ background: "rgba(251,191,36,0.15)", color: "#fbbf24" }}>
-                        🪙 {r.coins}
+                        💰 {r.coins}
                       </span>
                     )}
                   </div>
