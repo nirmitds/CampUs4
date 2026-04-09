@@ -208,10 +208,44 @@ function generateOTP() {
 /* parse device info from User-Agent string */
 function parseDevice(ua = "") {
   const s = ua.toLowerCase();
+
   // Device type
   let device = "Desktop";
   if (/mobile|android.*mobile|iphone|ipod|blackberry|windows phone/.test(s)) device = "Mobile";
   else if (/ipad|android(?!.*mobile)|tablet/.test(s)) device = "Tablet";
+
+  // Device model
+  let model = "";
+  // iPhone
+  const iphoneM = ua.match(/iPhone\s*OS\s*([\d_]+)/i);
+  if (iphoneM) model = `iPhone (iOS ${iphoneM[1].replace(/_/g,".")})`;
+  // iPad
+  const ipadM = ua.match(/iPad.*OS\s*([\d_]+)/i);
+  if (ipadM) model = `iPad (iPadOS ${ipadM[1].replace(/_/g,".")})`;
+  // Samsung
+  const samsungM = ua.match(/Samsung[- ]([A-Z0-9\-]+)/i) || ua.match(/SM-([A-Z0-9]+)/i);
+  if (samsungM) model = `Samsung ${samsungM[1]}`;
+  // Xiaomi / Redmi / POCO
+  const xiaomiM = ua.match(/(?:Redmi|POCO|Mi)\s*([A-Z0-9\s]+?)(?:\s*Build|\))/i);
+  if (xiaomiM) model = xiaomiM[0].replace(/\s*Build.*/i,"").trim();
+  // OnePlus
+  const opM = ua.match(/OnePlus\s*([A-Z0-9\s]+?)(?:\s*Build|\))/i);
+  if (opM) model = opM[0].replace(/\s*Build.*/i,"").trim();
+  // Realme
+  const realmeM = ua.match(/RMX[0-9]+/i);
+  if (realmeM) model = `Realme (${realmeM[0]})`;
+  // Generic Android
+  if (!model && s.includes("android")) {
+    const androidM = ua.match(/;\s*([^;)]+)\s*Build\//);
+    if (androidM) model = androidM[1].trim();
+  }
+  // Windows PC
+  if (!model && s.includes("windows nt 10")) model = "Windows PC";
+  else if (!model && s.includes("windows")) model = "Windows PC";
+  // Mac
+  if (!model && s.includes("macintosh")) model = "Mac";
+  // Linux
+  if (!model && s.includes("linux") && !s.includes("android")) model = "Linux PC";
 
   // Browser
   let browser = "Unknown";
@@ -234,13 +268,12 @@ function parseDevice(ua = "") {
   else if (s.includes("mac os x")) os = "macOS";
   else if (s.includes("linux")) os = "Linux";
 
-  return { device, browser, os };
+  return { device, model: model || device, browser, os };
 }
 
 /* get approximate location from IP using free ip-api.com */
 async function getIpLocation(ip) {
   try {
-    // skip private/local IPs
     if (!ip || ip === "::1" || ip.startsWith("127.") || ip.startsWith("192.168.") || ip.startsWith("10.")) {
       return { city: "Local", country: "Dev" };
     }
@@ -261,19 +294,29 @@ async function getIpLocation(ip) {
   } catch { return { city: "", country: "" }; }
 }
 
-/* save login info to user record */
-async function recordLogin(userId, req) {
+/* save login session — max 2 active sessions, oldest kicked on 3rd login */
+async function recordLogin(userId, req, token) {
   try {
     const ua = req.headers["user-agent"] || "";
     const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "";
-    const { device, browser, os } = parseDevice(ua);
+    const { device, model, browser, os } = parseDevice(ua);
     const { city, country } = await getIpLocation(ip);
-    const entry = { at: new Date(), ip, city, country, device, browser, os };
-    await User.findByIdAndUpdate(userId, {
-      lastLogin: entry,
-      $push: { loginHistory: { $each: [entry], $slice: -5 } } // keep last 5
-    });
-  } catch {}
+
+    const sessionId = crypto.randomBytes(16).toString("hex");
+    const entry = { sessionId, token, device, model, browser, os, ip, city, country, loginAt: new Date() };
+
+    const user = await User.findById(userId);
+    if (!user) return;
+
+    let sessions = user.activeSessions || [];
+    // keep max 2 — remove oldest if already at limit
+    if (sessions.length >= 2) sessions = sessions.slice(-1); // keep newest, add new one
+    sessions.push(entry);
+
+    user.activeSessions = sessions;
+    user.lastLogin = { at: new Date(), ip, city, country, device, model, browser, os };
+    await user.save();
+  } catch (e) { console.warn("recordLogin error:", e.message); }
 }
 
 function signToken(user) {
@@ -474,8 +517,9 @@ app.post("/auth/login", async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(400).json({ message: "Incorrect password" });
 
-    recordLogin(user._id, req); // async, don't await
-    res.json({ token: signToken(user) });
+    const token = signToken(user);
+    recordLogin(user._id, req, token); // async, don't await
+    res.json({ token });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Login failed" });
@@ -612,8 +656,9 @@ app.post("/auth/verify-otp", async (req, res) => {
     user.otpCode = null; user.otpExpiry = null;
     await user.save();
 
-    recordLogin(user._id, req); // async, don't await
-    res.json({ token: signToken(user) });
+    const token = signToken(user);
+    recordLogin(user._id, req, token); // async, don't await
+    res.json({ token });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "OTP verification failed" });
@@ -903,6 +948,16 @@ app.put("/admin/users/:id/reset-password", verifyToken, adminOnly, async (req, r
     const hashed = await bcrypt.hash(newPassword, 10);
     await User.findByIdAndUpdate(req.params.id, { password: hashed });
     res.json({ message: "Password updated" });
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* admin kick a specific session */
+app.delete("/admin/users/:id/session/:sessionId", verifyToken, adminOnly, async (req, res) => {
+  try {
+    await User.findByIdAndUpdate(req.params.id, {
+      $pull: { activeSessions: { sessionId: req.params.sessionId } }
+    });
+    res.json({ message: "Session removed" });
   } catch (err) { res.status(500).json({ message: "Server error" }); }
 });
 

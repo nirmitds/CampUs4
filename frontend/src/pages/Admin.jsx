@@ -132,6 +132,7 @@ export default function Admin() {
   const [assignFac,    setAssignFac]    = useState(null);   // faculty being assigned students
   const [assignSearch, setAssignSearch] = useState("");
   const [assignSaving, setAssignSaving] = useState(false);
+  const [sessionsUser, setSessionsUser] = useState(null); // show sessions for this userId
   const [loading,      setLoading]      = useState(false);
   const [faculty,      setFaculty]      = useState([]);
   const [facForm,      setFacForm]      = useState({ facultyId:"", password:"", name:"", department:"", university:"", subjects:"", classes:[], email:"" });
@@ -762,10 +763,16 @@ export default function Admin() {
                         {u.lastLogin?.device ? (
                           <div>
                             <div style={{ color:"#fff", fontWeight:600 }}>
-                              {u.lastLogin.device === "Mobile" ? "📱" : u.lastLogin.device === "Tablet" ? "📟" : "💻"} {u.lastLogin.device}
+                              {u.lastLogin.device === "Mobile" ? "📱" : u.lastLogin.device === "Tablet" ? "📟" : "💻"} {u.lastLogin.model || u.lastLogin.device}
                             </div>
                             <div style={{ color:"rgba(255,255,255,0.4)" }}>{u.lastLogin.browser}</div>
                             <div style={{ color:"rgba(255,255,255,0.3)" }}>{u.lastLogin.os}</div>
+                            {/* active sessions count */}
+                            {u.activeSessions?.length > 0 && (
+                              <div style={{ marginTop:4, padding:"2px 6px", borderRadius:6, background:"rgba(6,182,212,0.15)", color:"#22d3ee", fontSize:10, fontWeight:700, display:"inline-block" }}>
+                                {u.activeSessions.length}/2 sessions
+                              </div>
+                            )}
                           </div>
                         ) : <span style={{ color:"rgba(255,255,255,0.2)" }}>—</span>}
                       </td>
@@ -778,6 +785,10 @@ export default function Admin() {
                           }
                           {u.role !== "admin" && (
                             <>
+                              <button className="admin-btn" style={{ background:"rgba(6,182,212,0.12)", border:"1px solid rgba(6,182,212,0.25)", color:"#22d3ee" }}
+                                onClick={() => setSessionsUser(sessionsUser===u._id ? null : u._id)}>
+                                📱 {u.activeSessions?.length || 0}/2
+                              </button>
                               <button className="admin-btn" style={{ background:"rgba(139,92,246,0.15)", border:"1px solid rgba(139,92,246,0.3)", color:"#a78bfa" }}
                                 onClick={() => { setResetPwUser(resetPwUser===u._id ? null : u._id); setResetPwVal(""); }}>
                                 🔑 Password
@@ -795,6 +806,34 @@ export default function Admin() {
                             </>
                           )}
                         </div>
+                        {/* Active Sessions Panel */}
+                        {sessionsUser === u._id && (
+                          <div style={{ marginTop:8, background:"rgba(6,182,212,0.06)", border:"1px solid rgba(6,182,212,0.2)", borderRadius:10, padding:12 }}>
+                            <div style={{ fontSize:12, fontWeight:700, color:"#22d3ee", marginBottom:8 }}>Active Sessions ({u.activeSessions?.length || 0}/2)</div>
+                            {(!u.activeSessions || u.activeSessions.length === 0) ? (
+                              <div style={{ fontSize:12, color:"rgba(255,255,255,0.3)" }}>No active sessions</div>
+                            ) : u.activeSessions.map((s, i) => (
+                              <div key={i} style={{ display:"flex", gap:8, alignItems:"center", padding:"6px 0", borderBottom: i < u.activeSessions.length-1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
+                                <span style={{ fontSize:16 }}>{s.device==="Mobile"?"📱":s.device==="Tablet"?"📟":"💻"}</span>
+                                <div style={{ flex:1, minWidth:0 }}>
+                                  <div style={{ fontSize:12, fontWeight:600 }}>{s.model || s.device}</div>
+                                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{s.browser} · {s.os}</div>
+                                  {(s.city||s.country) && <div style={{ fontSize:10, color:"#60a5fa" }}>📍 {[s.city,s.country].filter(Boolean).join(", ")}</div>}
+                                  <div style={{ fontSize:10, color:"rgba(255,255,255,0.25)" }}>{s.loginAt ? new Date(s.loginAt).toLocaleString() : ""}</div>
+                                </div>
+                                <button className="admin-btn admin-btn-red" style={{ fontSize:10, padding:"3px 8px" }}
+                                  onClick={async () => {
+                                    try {
+                                      await axios.delete(`${API}/admin/users/${u._id}/session/${s.sessionId}`, { headers: hdrs() });
+                                      loadAll();
+                                    } catch (e) { alert("Failed"); }
+                                  }}>
+                                  Kick
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         {resetPwUser === u._id && (
                           <div style={{ display:"flex", gap:6, marginTop:8 }}>
                             <input
