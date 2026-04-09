@@ -36,7 +36,9 @@ export default function FacultyLogin() {
 
         {/* brand */}
         <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:28 }}>
-          <div style={{ width:46, height:46, borderRadius:14, background:"linear-gradient(135deg,#06b6d4,#8b5cf6)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, boxShadow:"0 6px 20px rgba(6,182,212,0.4)" }}>👨‍🏫</div>
+          <div style={{ width:46, height:46, borderRadius:14, background:"linear-gradient(135deg,#4f46e5,#7c3aed)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 6px 20px rgba(79,70,229,0.4)", overflow:"hidden" }}>
+            <img src="/logo.png" alt="CampUs" style={{ width:30, height:30 }} />
+          </div>
           <div>
             <div style={{ fontSize:18, fontWeight:800, color:"#fff" }}>Faculty Portal</div>
             <div style={{ fontSize:11, color:"rgba(255,255,255,0.38)", marginTop:1 }}>CampUs — Educator Access</div>

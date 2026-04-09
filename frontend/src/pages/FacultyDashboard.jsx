@@ -176,7 +176,8 @@ export default function FacultyDashboard() {
       {/* ── TOPBAR (always visible) ── */}
       <div className="fac-topbar">
         <button className="fac-hamburger" onClick={() => setSideOpen(o => !o)}>☰</button>
-        <span style={{ fontWeight:700, fontSize:15 }}>👨‍🏫 Faculty Portal</span>
+        <img src="/logo.png" alt="CampUs" style={{ width:24, height:24 }} />
+        <span style={{ fontWeight:700, fontSize:15 }}>Faculty Portal</span>
         <div style={{ marginLeft:"auto", fontSize:12, color:"rgba(255,255,255,0.4)" }}>
           {faculty?.name || "Faculty"}
         </div>
@@ -191,7 +192,7 @@ export default function FacultyDashboard() {
         {/* sidebar */}
         <div className={`fac-sidebar ${sideOpen?"open":""}`}>
           <div className="fac-brand">
-            <span style={{ fontSize:20 }}>👨‍🏫</span>
+            <img src="/logo.png" alt="CampUs" style={{ width:22, height:22, flexShrink:0 }} />
             <div>
               <div>Faculty Portal</div>
               <div style={{ fontSize:10, color:"rgba(255,255,255,0.35)", fontWeight:400 }}>CampUs</div>

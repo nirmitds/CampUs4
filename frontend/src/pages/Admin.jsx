@@ -225,7 +225,8 @@ export default function Admin() {
       {/* ── TOPBAR (always visible) ── */}
       <div className="admin-topbar">
         <button className="admin-hbg" onClick={() => setSideOpen(o => !o)}>☰</button>
-        <span className="admin-topbar-title">🎓 CampUs Admin</span>
+        <img src="/logo.png" alt="CampUs" style={{ width:24, height:24 }} />
+        <span className="admin-topbar-title">CampUs Admin</span>
         <div style={{ marginLeft:"auto", fontSize:12, color:"rgba(255,255,255,0.4)" }}>
           {localStorage.getItem("adminName") || "Admin"}
         </div>
@@ -239,7 +240,10 @@ export default function Admin() {
 
         {/* sidebar */}
         <div className={`admin-sidebar ${sideOpen ? "open" : ""}`}>
-          <div className="admin-brand">🎓 CampUs Admin</div>
+          <div className="admin-brand">
+            <img src="/logo.png" alt="CampUs" style={{ width:24, height:24, flexShrink:0 }} />
+            CampUs Admin
+          </div>
           {NAV.map(n => (
             <button key={n.id} className={`admin-nav-item ${tab===n.id?"active":""}`}
               onClick={() => { setTab(n.id); setSideOpen(false); }}>
