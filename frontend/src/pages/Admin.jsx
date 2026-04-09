@@ -127,6 +127,8 @@ export default function Admin() {
   const [deposits,     setDeposits]     = useState([]);
   const [rejectNote,   setRejectNote]   = useState("");
   const [deleteReqs,   setDeleteReqs]   = useState([]);
+  const [resetPwUser,  setResetPwUser]  = useState(null);  // userId being reset
+  const [resetPwVal,   setResetPwVal]   = useState("");
   const [loading,      setLoading]      = useState(false);
   const [faculty,      setFaculty]      = useState([]);
   const [facForm,      setFacForm]      = useState({ facultyId:"", password:"", name:"", department:"", university:"", subjects:"", classes:[], email:"" });
@@ -618,24 +620,57 @@ export default function Admin() {
                       </td>
                       <td style={{ fontSize:12, color:"rgba(255,255,255,0.4)" }}>{fmtDate(u.createdAt)}</td>
                       <td>
-                        <div style={{ display:"flex", gap:6 }}>
+                        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
                           {u.role !== "admin"
                             ? <button className="admin-btn admin-btn-blue" onClick={() => changeRole(u._id,"admin")}>Make Admin</button>
                             : <button className="admin-btn admin-btn-red" onClick={() => changeRole(u._id,"student")}>Revoke</button>
                           }
                           {u.role !== "admin" && (
-                            <button className="admin-btn admin-btn-red"
-                              onClick={async () => {
-                                if (!confirm(`Permanently delete @${u.username}? This cannot be undone.`)) return;
-                                try {
-                                  await axios.delete(`${API}/admin/users/${u._id}`, { headers: hdrs() });
-                                  loadAll();
-                                } catch (e) { alert(e.response?.data?.message || "Failed"); }
-                              }}>
-                              🗑️
-                            </button>
+                            <>
+                              <button className="admin-btn" style={{ background:"rgba(139,92,246,0.15)", border:"1px solid rgba(139,92,246,0.3)", color:"#a78bfa" }}
+                                onClick={() => { setResetPwUser(resetPwUser===u._id ? null : u._id); setResetPwVal(""); }}>
+                                🔑 Password
+                              </button>
+                              <button className="admin-btn admin-btn-red"
+                                onClick={async () => {
+                                  if (!confirm(`Permanently delete @${u.username}? This cannot be undone.`)) return;
+                                  try {
+                                    await axios.delete(`${API}/admin/users/${u._id}`, { headers: hdrs() });
+                                    loadAll();
+                                  } catch (e) { alert(e.response?.data?.message || "Failed"); }
+                                }}>
+                                🗑️
+                              </button>
+                            </>
                           )}
                         </div>
+                        {resetPwUser === u._id && (
+                          <div style={{ display:"flex", gap:6, marginTop:8 }}>
+                            <input
+                              type="password"
+                              style={{ flex:1, padding:"6px 10px", background:"rgba(255,255,255,0.07)", border:"1px solid rgba(139,92,246,0.3)", borderRadius:7, fontFamily:"Outfit,sans-serif", fontSize:13, color:"#fff", outline:"none" }}
+                              placeholder="New password (min 6 chars)"
+                              value={resetPwVal}
+                              onChange={e => setResetPwVal(e.target.value)}
+                              onKeyDown={e => e.key === "Enter" && e.target.nextSibling?.click()}
+                            />
+                            <button className="admin-btn" style={{ background:"rgba(139,92,246,0.2)", border:"1px solid rgba(139,92,246,0.4)", color:"#a78bfa" }}
+                              onClick={async () => {
+                                if (!resetPwVal || resetPwVal.length < 6) return alert("Password must be at least 6 characters");
+                                try {
+                                  await axios.put(`${API}/admin/users/${u._id}/reset-password`, { newPassword: resetPwVal }, { headers: hdrs() });
+                                  alert(`Password updated for @${u.username}`);
+                                  setResetPwUser(null); setResetPwVal("");
+                                } catch (e) { alert(e.response?.data?.message || "Failed"); }
+                              }}>
+                              Set
+                            </button>
+                            <button className="admin-btn" style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.09)", color:"rgba(255,255,255,0.5)" }}
+                              onClick={() => { setResetPwUser(null); setResetPwVal(""); }}>
+                              ✕
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
