@@ -79,10 +79,20 @@ function Auth() {
     if (!identifier || !password) return setError("Please fill in all fields.");
     setError(""); setLoading(true);
     try {
-      const { data } = await axios.post(`${API}/auth/login`, { username: identifier, password });
+      const { data } = await axios.post(`${API}/auth/login`, { username: identifier, password }, { timeout: 60000 });
       localStorage.setItem("token", data.token);
       navigate("/student");
     } catch (err) {
+      // If student login fails, try faculty login automatically
+      if (err.response?.status === 401 || err.response?.status === 404) {
+        try {
+          const { data: fData } = await axios.post(`${API}/faculty/login`, { facultyId: identifier, password }, { timeout: 60000 });
+          localStorage.setItem("facultyToken", fData.token);
+          localStorage.setItem("facultyName", fData.faculty.name);
+          navigate("/faculty/dashboard");
+          return;
+        } catch {}
+      }
       setError(err.response?.data?.message || "Login failed.");
     } finally { setLoading(false); }
   };
@@ -303,6 +313,9 @@ function Auth() {
         <p className="auth-switch">
           Don't have an account?
           <span className="auth-link" onClick={() => navigate("/register")}>Create one</span>
+        </p>
+        <p style={{ textAlign:"center", fontSize:11, color:"rgba(255,255,255,0.2)", marginTop:8 }}>
+          Faculty? Use your Faculty ID or email — you'll be redirected automatically.
         </p>
       </div>
     </div>
