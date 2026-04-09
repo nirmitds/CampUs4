@@ -205,6 +205,77 @@ function generateOTP() {
   return crypto.randomInt(100000, 999999).toString();
 }
 
+/* parse device info from User-Agent string */
+function parseDevice(ua = "") {
+  const s = ua.toLowerCase();
+  // Device type
+  let device = "Desktop";
+  if (/mobile|android.*mobile|iphone|ipod|blackberry|windows phone/.test(s)) device = "Mobile";
+  else if (/ipad|android(?!.*mobile)|tablet/.test(s)) device = "Tablet";
+
+  // Browser
+  let browser = "Unknown";
+  if (s.includes("edg/") || s.includes("edge/")) browser = "Edge";
+  else if (s.includes("opr/") || s.includes("opera")) browser = "Opera";
+  else if (s.includes("brave")) browser = "Brave";
+  else if (s.includes("chrome")) browser = "Chrome";
+  else if (s.includes("firefox")) browser = "Firefox";
+  else if (s.includes("safari") && !s.includes("chrome")) browser = "Safari";
+  else if (s.includes("msie") || s.includes("trident")) browser = "IE";
+
+  // OS
+  let os = "Unknown";
+  if (s.includes("windows nt 10")) os = "Windows 10/11";
+  else if (s.includes("windows nt 6.3")) os = "Windows 8.1";
+  else if (s.includes("windows")) os = "Windows";
+  else if (s.includes("android")) { const m = s.match(/android ([\d.]+)/); os = m ? `Android ${m[1]}` : "Android"; }
+  else if (s.includes("iphone os") || s.includes("cpu os")) { const m = s.match(/os ([\d_]+)/); os = m ? `iOS ${m[1].replace(/_/g,".")}` : "iOS"; }
+  else if (s.includes("ipad")) os = "iPadOS";
+  else if (s.includes("mac os x")) os = "macOS";
+  else if (s.includes("linux")) os = "Linux";
+
+  return { device, browser, os };
+}
+
+/* get approximate location from IP using free ip-api.com */
+async function getIpLocation(ip) {
+  try {
+    // skip private/local IPs
+    if (!ip || ip === "::1" || ip.startsWith("127.") || ip.startsWith("192.168.") || ip.startsWith("10.")) {
+      return { city: "Local", country: "Dev" };
+    }
+    const cleanIp = ip.replace("::ffff:", "");
+    const mod = require("https");
+    return await new Promise((resolve) => {
+      mod.get(`https://ip-api.com/json/${cleanIp}?fields=city,country,status`, (res) => {
+        let d = "";
+        res.on("data", c => d += c);
+        res.on("end", () => {
+          try {
+            const j = JSON.parse(d);
+            resolve(j.status === "success" ? { city: j.city || "", country: j.country || "" } : { city: "", country: "" });
+          } catch { resolve({ city: "", country: "" }); }
+        });
+      }).on("error", () => resolve({ city: "", country: "" }));
+    });
+  } catch { return { city: "", country: "" }; }
+}
+
+/* save login info to user record */
+async function recordLogin(userId, req) {
+  try {
+    const ua = req.headers["user-agent"] || "";
+    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "";
+    const { device, browser, os } = parseDevice(ua);
+    const { city, country } = await getIpLocation(ip);
+    const entry = { at: new Date(), ip, city, country, device, browser, os };
+    await User.findByIdAndUpdate(userId, {
+      lastLogin: entry,
+      $push: { loginHistory: { $each: [entry], $slice: -5 } } // keep last 5
+    });
+  } catch {}
+}
+
 function signToken(user) {
   return jwt.sign(
     { id: user._id, username: user.username, role: user.role, coins: user.coins },
@@ -403,6 +474,7 @@ app.post("/auth/login", async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(400).json({ message: "Incorrect password" });
 
+    recordLogin(user._id, req); // async, don't await
     res.json({ token: signToken(user) });
   } catch (err) {
     console.error(err);
@@ -540,6 +612,7 @@ app.post("/auth/verify-otp", async (req, res) => {
     user.otpCode = null; user.otpExpiry = null;
     await user.save();
 
+    recordLogin(user._id, req); // async, don't await
     res.json({ token: signToken(user) });
   } catch (err) {
     console.error(err);

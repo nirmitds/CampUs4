@@ -727,7 +727,7 @@ export default function Admin() {
             <div className="admin-card" style={{ padding:0, overflow:"hidden" }}>
               <table className="admin-table">
                 <thead><tr>
-                  <th>User</th><th>Email</th><th>University</th><th>Coins</th><th>ID Status</th><th>Role</th><th>Joined</th><th>Actions</th>
+                  <th>User</th><th>Email</th><th>University</th><th>Coins</th><th>ID Status</th><th>Role</th><th>Last Login</th><th>Device</th><th>Joined</th><th>Actions</th>
                 </tr></thead>
                 <tbody>
                   {filteredUsers.map(u => (
@@ -746,6 +746,28 @@ export default function Admin() {
                       </td>
                       <td>
                         <span className={`badge-sm ${u.role==="admin"?"badge-blue":"badge-gray"}`}>{u.role}</span>
+                      </td>
+                      <td style={{ fontSize:11, color:"rgba(255,255,255,0.4)", minWidth:100 }}>
+                        {u.lastLogin?.at ? (
+                          <div>
+                            <div>{new Date(u.lastLogin.at).toLocaleDateString([], { day:"numeric", month:"short" })}</div>
+                            <div style={{ color:"rgba(255,255,255,0.25)" }}>{new Date(u.lastLogin.at).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" })}</div>
+                            {(u.lastLogin.city || u.lastLogin.country) && (
+                              <div style={{ color:"#60a5fa", fontSize:10 }}>📍 {[u.lastLogin.city, u.lastLogin.country].filter(Boolean).join(", ")}</div>
+                            )}
+                          </div>
+                        ) : <span style={{ color:"rgba(255,255,255,0.2)" }}>Never</span>}
+                      </td>
+                      <td style={{ fontSize:11, minWidth:110 }}>
+                        {u.lastLogin?.device ? (
+                          <div>
+                            <div style={{ color:"#fff", fontWeight:600 }}>
+                              {u.lastLogin.device === "Mobile" ? "📱" : u.lastLogin.device === "Tablet" ? "📟" : "💻"} {u.lastLogin.device}
+                            </div>
+                            <div style={{ color:"rgba(255,255,255,0.4)" }}>{u.lastLogin.browser}</div>
+                            <div style={{ color:"rgba(255,255,255,0.3)" }}>{u.lastLogin.os}</div>
+                          </div>
+                        ) : <span style={{ color:"rgba(255,255,255,0.2)" }}>—</span>}
                       </td>
                       <td style={{ fontSize:12, color:"rgba(255,255,255,0.4)" }}>{fmtDate(u.createdAt)}</td>
                       <td>

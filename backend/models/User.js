@@ -34,6 +34,18 @@ const userSchema = new mongoose.Schema({
   otpCode:   { type: String, default: null },
   otpExpiry: { type: Date,   default: null },
 
+  /* Login tracking */
+  lastLogin: {
+    at:      { type: Date,   default: null },
+    ip:      { type: String, default: "" },
+    city:    { type: String, default: "" },
+    country: { type: String, default: "" },
+    device:  { type: String, default: "" }, // Mobile/Desktop/Tablet
+    browser: { type: String, default: "" }, // Chrome/Firefox/Safari etc
+    os:      { type: String, default: "" }, // Windows/Android/iOS etc
+  },
+  loginHistory: { type: Array, default: [] }, // last 5 logins
+
 }, { timestamps: true });
 
 module.exports = mongoose.model("User", userSchema);
