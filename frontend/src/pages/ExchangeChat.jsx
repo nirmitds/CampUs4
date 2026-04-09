@@ -66,7 +66,7 @@ if (!document.getElementById(CHAT_STYLE)) {
     .msg-row.mine .msg-time { text-align:right; }
     .img-preview-bar { padding:8px 16px; background:rgba(255,255,255,0.03); border-top:1px solid rgba(255,255,255,0.07); display:flex; align-items:center; gap:10px; flex-shrink:0; }
     .img-preview-thumb { width:52px; height:52px; border-radius:8px; object-fit:cover; border:2px solid rgba(59,130,246,0.4); }
-    .chat-input-bar { padding:10px 14px; border-top:1px solid rgba(255,255,255,0.07); display:flex; gap:8px; align-items:flex-end; flex-shrink:0; background:rgba(3,3,13,0.7); }
+    .chat-input-bar { padding:10px 14px; border-top:1px solid rgba(255,255,255,0.07); display:flex; gap:8px; align-items:flex-end; flex-shrink:0; background:rgba(3,3,13,0.95); position:sticky; bottom:0; z-index:10; }
     .chat-attach-btn { width:38px; height:38px; border-radius:10px; flex-shrink:0; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.09); cursor:pointer; color:rgba(255,255,255,0.5); font-size:18px; display:flex; align-items:center; justify-content:center; transition:background 0.15s; }
     .chat-attach-btn:hover { background:rgba(255,255,255,0.12); color:#fff; }
     .chat-textarea { flex:1; padding:9px 13px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.09); border-radius:12px; font-family:'Outfit',sans-serif; font-size:14px; color:#fff; outline:none; resize:none; max-height:100px; transition:border-color 0.2s; line-height:1.5; }
@@ -102,6 +102,9 @@ if (!document.getElementById(CHAT_STYLE)) {
       transition:transform 0.15s;
     }
     .loc-allow-btn:hover { transform:translateY(-2px); }
+    @media(max-width:768px) {
+      .chat-input-bar { padding-bottom: 74px; }
+    }
   `;
   document.head.appendChild(s);
 }

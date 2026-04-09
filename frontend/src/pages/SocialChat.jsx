@@ -79,7 +79,7 @@ if (!document.getElementById(SC)) {
     @keyframes tBounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
 
     /* input */
-    .sc-input-wrap { padding:10px 16px; border-top:1px solid rgba(255,255,255,0.07); display:flex; gap:8px; align-items:flex-end; flex-shrink:0; background:rgba(3,3,13,0.8); }
+    .sc-input-wrap { padding:10px 16px; border-top:1px solid rgba(255,255,255,0.07); display:flex; gap:8px; align-items:flex-end; flex-shrink:0; background:rgba(3,3,13,0.95); position:sticky; bottom:0; z-index:10; }
     .sc-textarea { flex:1; padding:10px 14px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.09); border-radius:22px; font-family:'Outfit',sans-serif; font-size:14px; color:#fff; outline:none; resize:none; max-height:100px; transition:border-color 0.2s; line-height:1.5; }
     .sc-textarea:focus { border-color:rgba(59,130,246,0.45); }
     .sc-textarea::placeholder { color:rgba(255,255,255,0.25); }
@@ -107,6 +107,8 @@ if (!document.getElementById(SC)) {
       .sc-chat { display:none; }
       .sc-root.open .sc-panel { display:none; }
       .sc-root.open .sc-chat { display:flex; }
+      .sc-input-wrap { padding-bottom: 74px; } /* above bottom nav (60px) + 14px gap */
+      .sc-msgs { padding-bottom: 8px; }
     }
   `;
   document.head.appendChild(s);

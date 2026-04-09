@@ -1050,7 +1050,6 @@ app.get("/exchange/all", async (req, res) => {
 /* get all requests with university context for logged-in user */
 app.get("/exchange/feed", async (req, res) => {
   try {
-    /* get requester's university if token provided */
     let myUniversity = "";
     const authHeader = req.headers.authorization;
     if (authHeader?.startsWith("Bearer ")) {
@@ -1066,10 +1065,36 @@ app.get("/exchange/feed", async (req, res) => {
 
     if (!myUniversity) return res.json({ myUni: [], nearby: [], others: all, myUniversity: "" });
 
-    const myUni  = all.filter(r => r.ownerUniversity && r.ownerUniversity.toLowerCase() === myUniversity.toLowerCase());
-    const others = all.filter(r => !r.ownerUniversity || r.ownerUniversity.toLowerCase() !== myUniversity.toLowerCase());
+    // Nearby universities map — colleges within ~2km of each other
+    const NEARBY_MAP = {
+      "k.r. mangalam university (krmu)": ["gd goenka university", "g.d. goenka university", "manav rachna university", "manav rachna international institute", "faridabad"],
+      "gd goenka university": ["k.r. mangalam university (krmu)", "kr mangalam university", "manav rachna university"],
+      "g.d. goenka university": ["k.r. mangalam university (krmu)", "kr mangalam university", "manav rachna university"],
+      "manav rachna university": ["k.r. mangalam university (krmu)", "gd goenka university", "g.d. goenka university"],
+      "manav rachna international institute": ["k.r. mangalam university (krmu)", "gd goenka university"],
+      "delhi university (du)": ["jamia millia islamia", "jamia hamdard", "ip university", "guru gobind singh indraprastha university"],
+      "jamia millia islamia": ["delhi university (du)", "jamia hamdard", "ip university"],
+      "iit delhi": ["delhi university (du)", "iit bombay"],
+      "amity university": ["sharda university", "galgotias university", "bennett university"],
+      "sharda university": ["amity university", "galgotias university", "bennett university"],
+      "galgotias university": ["amity university", "sharda university", "bennett university"],
+      "bennett university": ["amity university", "sharda university", "galgotias university"],
+      "lovely professional university (lpu)": ["chandigarh university", "chitkara university"],
+      "chandigarh university": ["lovely professional university (lpu)", "chitkara university", "panjab university"],
+    };
 
-    res.json({ myUni, nearby: [], others, myUniversity });
+    const myUniLower = myUniversity.toLowerCase();
+    const nearbyUnis = (NEARBY_MAP[myUniLower] || []).map(u => u.toLowerCase());
+
+    const myUni   = all.filter(r => r.ownerUniversity && r.ownerUniversity.toLowerCase() === myUniLower);
+    const nearby  = all.filter(r => r.ownerUniversity && nearbyUnis.includes(r.ownerUniversity.toLowerCase()));
+    const others  = all.filter(r => {
+      if (!r.ownerUniversity) return true;
+      const uLower = r.ownerUniversity.toLowerCase();
+      return uLower !== myUniLower && !nearbyUnis.includes(uLower);
+    });
+
+    res.json({ myUni, nearby, others, myUniversity });
   } catch (err) { res.status(500).json({ message: "Server error" }); }
 });
 
