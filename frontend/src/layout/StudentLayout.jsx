@@ -854,7 +854,9 @@ function StudentLayout() {
             <span /><span /><span />
           </button>
           <div className={`top-bar-brand ${!isMobile && collapsed ? "hidden" : ""}`}>
-            <div className="brand-icon">🎓</div>
+            <div className="brand-icon" style={{ background:"none", overflow:"hidden" }}>
+              <img src="/logo.png" alt="CampUs" style={{ width:"100%", height:"100%", objectFit:"contain" }} />
+            </div>
             <span className="brand-name">CampUs</span>
           </div>
         </div>

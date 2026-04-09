@@ -127,8 +127,11 @@ export default function Admin() {
   const [deposits,     setDeposits]     = useState([]);
   const [rejectNote,   setRejectNote]   = useState("");
   const [deleteReqs,   setDeleteReqs]   = useState([]);
-  const [resetPwUser,  setResetPwUser]  = useState(null);  // userId being reset
+  const [resetPwUser,  setResetPwUser]  = useState(null);
   const [resetPwVal,   setResetPwVal]   = useState("");
+  const [assignFac,    setAssignFac]    = useState(null);   // faculty being assigned students
+  const [assignSearch, setAssignSearch] = useState("");
+  const [assignSaving, setAssignSaving] = useState(false);
   const [loading,      setLoading]      = useState(false);
   const [faculty,      setFaculty]      = useState([]);
   const [facForm,      setFacForm]      = useState({ facultyId:"", password:"", name:"", department:"", university:"", subjects:"", classes:[], email:"" });
@@ -446,7 +449,6 @@ export default function Admin() {
                         <button
                           className={`admin-btn ${f.emailVerified ? "admin-btn-red" : "admin-btn-green"}`}
                           onClick={async () => {
-                            const action = f.emailVerified ? "unverify" : "verify";
                             if (!confirm(`${f.emailVerified ? "Remove" : "Mark"} ${f.name} as verified?`)) return;
                             try {
                               await axios.put(`${API}/admin/faculty/${f._id}`, { emailVerified: !f.emailVerified }, { headers: hdrs() });
@@ -454,6 +456,10 @@ export default function Admin() {
                             } catch (e) { alert(e.response?.data?.message || "Failed"); }
                           }}>
                           {f.emailVerified ? "✕ Unverify" : "✅ Verify"}
+                        </button>
+                        <button className="admin-btn" style={{ background:"rgba(6,182,212,0.15)", border:"1px solid rgba(6,182,212,0.3)", color:"#22d3ee" }}
+                          onClick={() => { setAssignFac(f); setAssignSearch(""); }}>
+                          👥 Assign Students
                         </button>
                         <button className="admin-btn admin-btn-blue"
                           onClick={() => {
@@ -485,6 +491,91 @@ export default function Admin() {
               </div>
             )}
           </>
+        )}
+
+        {/* ── ASSIGN STUDENTS MODAL ── */}
+        {assignFac && (
+          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", backdropFilter:"blur(8px)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
+            onClick={e => e.target===e.currentTarget && setAssignFac(null)}>
+            <div style={{ background:"#0f0f23", border:"1px solid rgba(255,255,255,0.1)", borderRadius:20, padding:28, width:"100%", maxWidth:560, maxHeight:"85vh", overflowY:"auto" }}>
+              <div style={{ fontSize:17, fontWeight:700, marginBottom:4 }}>👥 Assign Students to {assignFac.name}</div>
+              <div style={{ fontSize:12, color:"rgba(255,255,255,0.35)", marginBottom:16 }}>
+                Select a class to assign students to. This updates the student's course/branch/year/semester to match.
+              </div>
+
+              {/* class selector */}
+              {assignFac.classes?.length > 0 && (
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:"#22d3ee", marginBottom:8 }}>Select Target Class</div>
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                    {assignFac.classes.map((cls, i) => {
+                      const label = [cls.course, cls.branch, cls.year && `Y${cls.year}`, cls.semester && `S${cls.semester}`, cls.section].filter(Boolean).join(" · ");
+                      const isSelected = assignFac._selectedClass === i;
+                      return (
+                        <button key={i}
+                          style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", border:"1px solid rgba(6,182,212,0.3)",
+                            background: isSelected ? "rgba(6,182,212,0.25)" : "rgba(6,182,212,0.08)", color:"#22d3ee" }}
+                          onClick={() => setAssignFac({ ...assignFac, _selectedClass: i })}>
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* search students */}
+              <input className="admin-search" style={{ maxWidth:"100%", marginBottom:12 }}
+                placeholder="Search students by name, username, email..."
+                value={assignSearch} onChange={e => setAssignSearch(e.target.value)} />
+
+              {/* student list */}
+              <div style={{ display:"flex", flexDirection:"column", gap:6, maxHeight:320, overflowY:"auto" }}>
+                {users
+                  .filter(u => u.role !== "admin" && (!assignSearch || u.name?.toLowerCase().includes(assignSearch.toLowerCase()) || u.username?.toLowerCase().includes(assignSearch.toLowerCase()) || u.email?.toLowerCase().includes(assignSearch.toLowerCase())))
+                  .map(u => {
+                    const cls = assignFac._selectedClass !== undefined ? assignFac.classes[assignFac._selectedClass] : null;
+                    const alreadyAssigned = cls && u.course === cls.course && u.branch === cls.branch && u.year === cls.year && u.semester === cls.semester;
+                    return (
+                      <div key={u._id} style={{ display:"flex", gap:10, alignItems:"center", padding:"10px 12px", background:"rgba(255,255,255,0.04)", borderRadius:10, border:`1px solid ${alreadyAssigned ? "rgba(6,182,212,0.3)" : "rgba(255,255,255,0.07)"}` }}>
+                        <div style={{ width:32, height:32, borderRadius:"50%", background:"linear-gradient(135deg,#3b82f6,#8b5cf6)", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:13, flexShrink:0 }}>
+                          {u.name?.[0]?.toUpperCase()}
+                        </div>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:13, fontWeight:600 }}>{u.name}</div>
+                          <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>@{u.username} · {u.course || "No class"} {u.branch} {u.year && `Y${u.year}`} {u.semester && `S${u.semester}`}</div>
+                        </div>
+                        {alreadyAssigned
+                          ? <span style={{ fontSize:11, color:"#22d3ee", fontWeight:600 }}>✓ Assigned</span>
+                          : (
+                            <button className="admin-btn admin-btn-blue" style={{ fontSize:11, padding:"4px 10px", flexShrink:0 }}
+                              disabled={!cls || assignSaving}
+                              onClick={async () => {
+                                if (!cls) return alert("Select a class first");
+                                setAssignSaving(true);
+                                try {
+                                  await axios.put(`${API}/admin/users/${u._id}/assign-class`,
+                                    { course: cls.course, branch: cls.branch, year: cls.year, semester: cls.semester, section: cls.section },
+                                    { headers: hdrs() });
+                                  loadAll(); // refresh users
+                                } catch (e) { alert(e.response?.data?.message || "Failed"); }
+                                finally { setAssignSaving(false); }
+                              }}>
+                              Assign
+                            </button>
+                          )
+                        }
+                      </div>
+                    );
+                  })}
+              </div>
+
+              <div style={{ display:"flex", justifyContent:"flex-end", marginTop:16 }}>
+                <button className="admin-btn" style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.09)", color:"rgba(255,255,255,0.7)" }}
+                  onClick={() => setAssignFac(null)}>Close</button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* ── FACULTY EDIT MODAL ── */}

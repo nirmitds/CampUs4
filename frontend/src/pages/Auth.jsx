@@ -150,7 +150,9 @@ function Auth() {
 
       <div className="auth-card">
         <div className="auth-logo-row">
-          <div className="auth-logo-icon">🎓</div>
+          <div className="auth-logo-icon">
+            <img src="/logo.png" alt="CampUs" style={{ width:"100%", height:"100%", objectFit:"contain", borderRadius:10 }} />
+          </div>
           <div>
             <div className="auth-logo-title">CampUs</div>
             <div className="auth-logo-sub">Connecting Students Together</div>

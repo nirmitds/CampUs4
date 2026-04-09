@@ -762,7 +762,10 @@ app.put("/admin/users/:id/verify-id", verifyToken, adminOnly, async (req, res) =
     if (!["verified","rejected"].includes(action))
       return res.status(400).json({ message: "action must be verified or rejected" });
     const update = { idVerified: action };
-    if (action === "rejected") update.idRejectedReason = reason || "ID not clear";
+    if (action === "rejected") {
+      update.idRejectedReason = reason || "ID not clear";
+      update.idCard = null; // clear so student must re-upload
+    }
     const user = await User.findByIdAndUpdate(req.params.id, update, { new: true })
       .select("-password -otpCode -otpExpiry -idCard");
     res.json(user);
@@ -776,6 +779,44 @@ app.put("/admin/users/:id/role", verifyToken, adminOnly, async (req, res) => {
     if (!["student","admin"].includes(role)) return res.status(400).json({ message: "Invalid role" });
     const user = await User.findByIdAndUpdate(req.params.id, { role }, { new: true })
       .select("-password -otpCode -otpExpiry -idCard");
+    res.json(user);
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* admin delete a student/user account */
+app.delete("/admin/users/:id", verifyToken, adminOnly, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (user.role === "admin") return res.status(403).json({ message: "Cannot delete admin accounts" });
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ message: `User @${user.username} deleted` });
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* admin reset a student's password */
+app.put("/admin/users/:id/reset-password", verifyToken, adminOnly, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.length < 6) return res.status(400).json({ message: "Password must be at least 6 characters" });
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await User.findByIdAndUpdate(req.params.id, { password: hashed });
+    res.json({ message: "Password updated" });
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* admin assign student to a faculty class (updates student's course/branch/year/semester) */
+app.put("/admin/users/:id/assign-class", verifyToken, adminOnly, async (req, res) => {
+  try {
+    const { course, branch, year, semester, section } = req.body;
+    const update = {};
+    if (course   !== undefined) update.course   = course;
+    if (branch   !== undefined) update.branch   = branch;
+    if (year     !== undefined) update.year     = year;
+    if (semester !== undefined) update.semester = semester;
+    if (section  !== undefined) update.section  = section;
+    const user = await User.findByIdAndUpdate(req.params.id, update, { new: true })
+      .select("name username course branch year semester");
     res.json(user);
   } catch (err) { res.status(500).json({ message: "Server error" }); }
 });
