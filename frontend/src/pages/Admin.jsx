@@ -623,6 +623,18 @@ export default function Admin() {
                             ? <button className="admin-btn admin-btn-blue" onClick={() => changeRole(u._id,"admin")}>Make Admin</button>
                             : <button className="admin-btn admin-btn-red" onClick={() => changeRole(u._id,"student")}>Revoke</button>
                           }
+                          {u.role !== "admin" && (
+                            <button className="admin-btn admin-btn-red"
+                              onClick={async () => {
+                                if (!confirm(`Permanently delete @${u.username}? This cannot be undone.`)) return;
+                                try {
+                                  await axios.delete(`${API}/admin/users/${u._id}`, { headers: hdrs() });
+                                  loadAll();
+                                } catch (e) { alert(e.response?.data?.message || "Failed"); }
+                              }}>
+                              🗑️
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -688,13 +700,17 @@ export default function Admin() {
                       )}
 
                       {status === "rejected" && u.idRejectedReason && (
-                        <div style={{ fontSize:12, color:"#f87171", marginBottom:10 }}>Reason: {u.idRejectedReason}</div>
+                        <div style={{ background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", borderRadius:8, padding:"8px 12px", marginBottom:10 }}>
+                          <div style={{ fontSize:12, color:"#f87171", fontWeight:600 }}>❌ Rejected — Re-upload required</div>
+                          <div style={{ fontSize:11, color:"rgba(255,255,255,0.5)", marginTop:3 }}>Reason: {u.idRejectedReason}</div>
+                          <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:3 }}>Student must upload a new ID card to get verified.</div>
+                        </div>
                       )}
 
                       {selectedUser === u._id && (
                         <input
                           style={{ width:"100%", background:"rgba(255,255,255,0.07)", border:"1px solid rgba(239,68,68,0.3)", borderRadius:8, padding:"8px 12px", color:"#fff", fontFamily:"Outfit,sans-serif", fontSize:13, outline:"none", marginBottom:10, boxSizing:"border-box" }}
-                          placeholder="Rejection reason (optional)"
+                          placeholder="Rejection reason (e.g. ID not clear, wrong ID)"
                           value={rejectReason} onChange={e => setRejectReason(e.target.value)}
                         />
                       )}
@@ -709,10 +725,17 @@ export default function Admin() {
                         </div>
                       )}
                       {status === "verified" && (
-                        <div style={{ textAlign:"center", fontSize:12, color:"#4ade80", padding:"6px 0" }}>✅ Verified</div>
+                        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                          <div style={{ flex:1, textAlign:"center", fontSize:12, color:"#4ade80", padding:"6px 0" }}>✅ Verified</div>
+                          <button className="admin-btn admin-btn-red" style={{ fontSize:11 }}
+                            onClick={() => verifyId(u._id,"rejected")}>Revoke</button>
+                        </div>
                       )}
-                      {!u.idCard && (
+                      {!u.idCard && status !== "rejected" && (
                         <div style={{ textAlign:"center", fontSize:12, color:"rgba(255,255,255,0.25)", padding:"6px 0" }}>Waiting for user to upload</div>
+                      )}
+                      {!u.idCard && status === "rejected" && (
+                        <div style={{ textAlign:"center", fontSize:12, color:"#fbbf24", padding:"6px 0" }}>⏳ Waiting for re-upload</div>
                       )}
                     </div>
                   );
