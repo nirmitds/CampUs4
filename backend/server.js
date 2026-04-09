@@ -289,6 +289,34 @@ app.post("/auth/register", async (req, res) => {
     });
     /* log welcome bonus */
     await addCoins(username, 100, "Welcome to CampUs! 🎓", "bonus");
+
+    /* notify admin via email */
+    if (emailReady && process.env.MAIL_USER) {
+      const now = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "full", timeStyle: "medium" });
+      transporter.sendMail({
+        from: process.env.MAIL_FROM || `"CampUs 🎓" <${process.env.MAIL_USER}>`,
+        to: process.env.MAIL_USER,
+        subject: `New Student Registered — ${name} (@${username})`,
+        html: `
+          <div style="font-family:sans-serif;max-width:480px;margin:auto;background:#0a0a1a;color:#fff;border-radius:16px;padding:28px;border:1px solid rgba(59,130,246,0.2)">
+            <h2 style="margin:0 0 16px;color:#60a5fa">New Student Registration</h2>
+            <table style="width:100%;border-collapse:collapse;font-size:14px">
+              <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5);width:120px">Name</td><td style="padding:8px 0;font-weight:600">${name}</td></tr>
+              <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">Username</td><td style="padding:8px 0">@${username}</td></tr>
+              <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">Email</td><td style="padding:8px 0">${email}</td></tr>
+              <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">Phone</td><td style="padding:8px 0">${phone}</td></tr>
+              <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">University</td><td style="padding:8px 0">${university || "—"}</td></tr>
+              <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">Roll No</td><td style="padding:8px 0">${rollNo || "—"}</td></tr>
+              <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">Course</td><td style="padding:8px 0">${course || "—"}</td></tr>
+              <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">ID Card</td><td style="padding:8px 0">${idCard ? "✅ Uploaded (pending verification)" : "❌ Not uploaded"}</td></tr>
+              <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">Registered At</td><td style="padding:8px 0;color:#fbbf24">${now}</td></tr>
+            </table>
+            <a href="${process.env.APP_URL || "https://campus44.onrender.com"}/admin/dashboard" style="display:inline-block;margin-top:20px;padding:10px 20px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:13px">View in Admin Panel →</a>
+          </div>
+        `
+      }).catch(e => console.warn("Admin notify failed:", e.message));
+    }
+
     res.json({ message: "Account created successfully! Please sign in." });
   } catch (err) {
     console.error(err);

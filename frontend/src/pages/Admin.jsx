@@ -302,6 +302,40 @@ export default function Admin() {
                 </button>
               </div>
             )}
+
+            {/* Recent Registrations */}
+            <div className="admin-card" style={{ marginTop:8 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+                <div style={{ fontWeight:700, fontSize:15 }}>🆕 Recent Registrations</div>
+                <button className="admin-btn admin-btn-blue" style={{ fontSize:11 }} onClick={() => setTab("users")}>View All →</button>
+              </div>
+              {users.length === 0 ? (
+                <div style={{ color:"rgba(255,255,255,0.3)", fontSize:13, textAlign:"center", padding:16 }}>No users yet</div>
+              ) : (
+                <table className="admin-table">
+                  <thead><tr><th>User</th><th>University</th><th>ID Status</th><th>Registered</th></tr></thead>
+                  <tbody>
+                    {[...users].sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0,8).map(u => (
+                      <tr key={u._id}>
+                        <td>
+                          <div style={{ fontWeight:600, fontSize:13 }}>{u.name}</div>
+                          <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)" }}>@{u.username} · {u.email}</div>
+                        </td>
+                        <td style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>{u.university || "—"}</td>
+                        <td>
+                          <span className={`badge-sm ${u.idVerified==="verified"?"badge-green":u.idVerified==="pending"?"badge-yellow":u.idVerified==="rejected"?"badge-red":"badge-gray"}`}>
+                            {u.idVerified || "none"}
+                          </span>
+                        </td>
+                        <td style={{ fontSize:11, color:"rgba(255,255,255,0.4)", whiteSpace:"nowrap" }}>
+                          {new Date(u.createdAt).toLocaleString("en-IN", { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </>
         )}
 
