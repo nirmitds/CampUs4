@@ -452,6 +452,13 @@ if (!document.getElementById(STYLE_ID)) {
     .main-wrap:has(.sc-root) {
       overflow: hidden;
     }
+    /* on mobile, subtract bottom nav height from chat pages */
+    @media (max-width: 768px) {
+      .page-anim:has(.chat-shell),
+      .page-anim:has(.sc-root) {
+        height: calc(100vh - var(--hh) - 60px);
+      }
+    }
     @keyframes pageIn {
       from { opacity:0; transform: translateY(14px); }
       to   { opacity:1; transform: none; }
