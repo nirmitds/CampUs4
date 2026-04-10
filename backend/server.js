@@ -172,6 +172,12 @@ mongoose.connect(process.env.MONGO_URI)
       { $set: { emailVerified: true } }
     );
     if (result.modifiedCount > 0) console.log(`✅ Migrated ${result.modifiedCount} existing users → emailVerified: true`);
+    // Cleanup: remove DM conversations where both participants are the same user
+    try {
+      const { DirectConversation: DC } = require("./models/DirectMessage");
+      const bad = await DC.find({ $where: "this.participants[0] === this.participants[1]" });
+      if (bad.length) { await DC.deleteMany({ $where: "this.participants[0] === this.participants[1]" }); console.log(`🧹 Removed ${bad.length} self-conversations`); }
+    } catch {}
   })
   .catch(err => {
     console.error("❌ MongoDB Connection Failed:", err.message);
@@ -1983,12 +1989,14 @@ app.get("/dm/conversations", verifyToken, async (req, res) => {
   try {
     const me = req.user.username;
     const convs = await DirectConversation.find({ participants: me }).sort({ lastAt: -1 });
-    const result = await Promise.all(convs.map(async c => {
+    const result = (await Promise.all(convs.map(async c => {
       const other = c.participants.find(p => p !== me);
+      if (!other) return null; // skip self-conversations or bad data
       const user  = await User.findOne({ username: other }).select("username name avatar university");
+      if (!user) return null; // skip if user deleted
       const unread = c.unread?.get ? (c.unread.get(me) || 0) : (c.unread?.[me] || 0);
-      return { convId: c._id, other, user, lastMessage: c.lastMessage, lastAt: c.lastAt, unread };
-    }));
+      return { convId: c._id, other, user, lastMessage: c.lastMessage, lastAt: c.lastAt, unread, isRequest: c.isRequest };
+    }))).filter(Boolean); // remove nulls
     res.json(result);
   } catch (err) { res.status(500).json({ message: "Server error" }); }
 });

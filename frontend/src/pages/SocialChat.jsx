@@ -358,12 +358,12 @@ export default function SocialChat() {
 
         <div className="sc-list">
           {/* CHATS */}
-          {seg === "chats" && normalConvs.map(c => (
+          {seg === "chats" && normalConvs.filter(c => c.other).map(c => (
             <div key={c.convId} className={`sc-row ${active===c.other?"active":""}`} onClick={() => setActive(c.other)}>
               <Av user={c.user} size={46} />
               <div className="sc-row-body">
                 <div className="sc-row-name">@{c.other}</div>
-                <div className={`sc-row-sub ${c.unread>0?"bold":""}`}>{c.lastMessage || "Say hi!"}</div>
+                <div className={`sc-row-sub ${c.unread>0?"bold":""}`}>{c.lastMessage?.text || c.lastMessage || "Say hi!"}</div>
               </div>
               <div className="sc-row-meta">
                 <div className="sc-time">{ago(c.lastAt)}</div>
@@ -380,7 +380,7 @@ export default function SocialChat() {
           )}
 
           {/* REQUESTS */}
-          {seg === "requests" && myRequests.map(c => (
+          {seg === "requests" && myRequests.filter(c => c.other).map(c => (
             <div key={c.convId} className={`sc-row ${active===c.other?"active":""}`} onClick={() => setActive(c.other)}>
               <Av user={c.user} size={46} />
               <div className="sc-row-body">
