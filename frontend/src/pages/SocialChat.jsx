@@ -51,7 +51,7 @@ if (!document.getElementById(SC)) {
     .sc-req-dot { width:8px; height:8px; border-radius:50%; background:#f59e0b; box-shadow:0 0 6px rgba(245,158,11,0.7); }
 
     /* ── RIGHT PANEL ── */
-    .sc-chat { flex:1; min-width:0; display:flex; flex-direction:column; min-height:0; overflow:hidden; }
+    .sc-chat { flex:1; min-width:0; max-width:100%; display:flex; flex-direction:column; min-height:0; overflow:hidden; position:relative; }
     .sc-chat-top { padding:12px 18px; border-bottom:1px solid rgba(255,255,255,0.07); display:flex; align-items:center; gap:12px; flex-shrink:0; background:rgba(8,8,20,0.6); backdrop-filter:blur(20px); }
     .sc-chat-name { font-size:15px; font-weight:700; }
     .sc-chat-sub { font-size:11px; color:rgba(255,255,255,0.38); margin-top:1px; }
@@ -62,13 +62,13 @@ if (!document.getElementById(SC)) {
     .sc-req-banner-sub { font-size:12px; color:rgba(255,255,255,0.5); margin-bottom:10px; }
 
     /* messages */
-    .sc-msgs { flex:1; overflow-y:auto; padding:14px 18px; display:flex; flex-direction:column; gap:4px; }
+    .sc-msgs { flex:1; overflow-y:auto; overflow-x:hidden; padding:14px 18px; display:flex; flex-direction:column; gap:4px; min-height:0; }
     .sc-msgs::-webkit-scrollbar { width:3px; }
     .sc-msgs::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.07); border-radius:3px; }
     .sc-date-sep { text-align:center; font-size:11px; color:rgba(255,255,255,0.2); margin:8px 0 4px; }
-    .sc-msg-row { display:flex; gap:8px; align-items:flex-end; }
+    .sc-msg-row { display:flex; gap:8px; align-items:flex-end; max-width:100%; }
     .sc-msg-row.mine { flex-direction:row-reverse; }
-    .sc-bubble { max-width:66%; padding:9px 13px; border-radius:18px; font-size:13.5px; line-height:1.5; word-break:break-word; }
+    .sc-bubble { max-width:66%; padding:9px 13px; border-radius:18px; font-size:13.5px; line-height:1.5; word-break:break-word; overflow-wrap:break-word; }
     .sc-bubble.theirs { background:rgba(255,255,255,0.09); border:1px solid rgba(255,255,255,0.07); border-bottom-left-radius:4px; }
     .sc-bubble.mine { background:linear-gradient(135deg,#3b82f6,#6366f1); border-bottom-right-radius:4px; }
     .sc-msg-img { max-width:220px; max-height:220px; border-radius:14px; cursor:pointer; display:block; object-fit:cover; }
