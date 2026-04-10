@@ -28,7 +28,7 @@ function Dashboard() {
   const [user,    setUser]    = useState(null);
   const [chats,   setChats]   = useState([]);
   const [avatars, setAvatars] = useState({});
-  const { idVerified, isVerified } = useVerification();
+  const { idVerified, emailVerified, isVerified } = useVerification();
 
   useEffect(() => {
     if (!tok()) return;
