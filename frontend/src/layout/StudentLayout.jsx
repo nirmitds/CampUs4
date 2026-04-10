@@ -760,6 +760,8 @@ function StudentLayout() {
   const [user,        setUser]        = useState(null);
   const [notifOpen,   setNotifOpen]   = useState(false);
   const [chatSummary, setChatSummary] = useState({ totalUnread: 0, chats: [] });
+  const [dmUnread,    setDmUnread]    = useState(0);
+  const [dmChats,     setDmChats]     = useState([]);
   const notifRef  = useRef();
   const socketRef = useRef();
 
@@ -785,6 +787,14 @@ function StudentLayout() {
     if (!token) return;
     axios.get(`${API}/chat/summary`, { headers: authHdr() })
       .then(r => setChatSummary(r.data)).catch(() => {});
+    // also fetch DM (social chat) unread
+    axios.get(`${API}/dm/conversations`, { headers: authHdr() })
+      .then(r => {
+        const convs = r.data || [];
+        const unread = convs.reduce((a, c) => a + (c.unread || 0), 0);
+        setDmUnread(unread);
+        setDmChats(convs.filter(c => c.unread > 0).slice(0, 5));
+      }).catch(() => {});
   };
 
   /* real-time summary via socket */
@@ -804,6 +814,10 @@ function StudentLayout() {
     socket.on("summary_update", (data) => {
       setChatSummary(data);
     });
+
+    /* DM (social chat) new message — refresh DM unread */
+    socket.on("dm_message", () => { fetchSummary(); });
+    socket.on("dm_request",  () => { fetchSummary(); });
 
     /* fallback poll every 30s in case socket misses something */
     const fallback = setInterval(fetchSummary, 30000);
@@ -832,7 +846,7 @@ function StudentLayout() {
   const curLabel      = pageLabel(location.pathname);
   const initials      = user?.name?.[0]?.toUpperCase() ?? "S";
   const avatar        = user?.avatar || null;
-  const unread        = chatSummary.totalUnread;
+  const unread = chatSummary.totalUnread + dmUnread;
 
   /* hamburger is "open" (X) when: desktop=expanded, mobile=drawer open */
   const hbgOpen = isMobile ? mobileOpen : !collapsed;
@@ -885,7 +899,7 @@ function StudentLayout() {
             {notifOpen && (
               <div className="notif-dropdown">
                 <div className="notif-header">
-                  <span>💬 Messages</span>
+                  <span>🔔 Notifications</span>
                   {unread > 0 && (
                     <span style={{ fontSize: 11, color: "#60a5fa", fontWeight: 600 }}>
                       {unread} unread
@@ -893,49 +907,71 @@ function StudentLayout() {
                   )}
                 </div>
 
-                {chatSummary.chats.length === 0 ? (
-                  <div className="notif-empty">
-                    <div style={{ fontSize: 28, marginBottom: 8 }}>💬</div>
-                    No active chats yet.<br />Accept an exchange request to start chatting.
-                  </div>
-                ) : (
-                  chatSummary.chats.map(c => (
-                    <div key={c.requestId} className="notif-item"
-                      onClick={() => { navigate(`/student/chat/${c.requestId}`); setNotifOpen(false); }}>
-                      <div className={`notif-item-dot ${c.unread === 0 ? "read" : ""}`} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2,
-                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {c.title}
-                        </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)",
-                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {c.lastMessage
-                            ? `${c.lastMessage.sender === c.otherUser ? `@${c.otherUser}` : "You"}: ${c.lastMessage.text}`
-                            : `Chat with @${c.otherUser}`}
-                        </div>
-                      </div>
-                      {c.unread > 0 && (
-                        <span style={{
-                          minWidth: 20, height: 20, borderRadius: 10,
-                          background: "#3b82f6", color: "#fff",
-                          fontSize: 11, fontWeight: 800,
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          padding: "0 5px", flexShrink: 0,
-                        }}>{c.unread}</span>
-                      )}
+                {/* Exchange Chats */}
+                {chatSummary.chats.length > 0 && (
+                  <>
+                    <div style={{ padding:"6px 16px 4px", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"0.5px" }}>
+                      Exchange Chats
                     </div>
-                  ))
+                    {chatSummary.chats.map(c => (
+                      <div key={c.requestId} className="notif-item"
+                        onClick={() => { navigate(`/student/chat/${c.requestId}`); setNotifOpen(false); }}>
+                        <div className={`notif-item-dot ${c.unread === 0 ? "read" : ""}`} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                            {c.title}
+                          </div>
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                            {c.lastMessage
+                              ? `${c.lastMessage.sender === c.otherUser ? `@${c.otherUser}` : "You"}: ${c.lastMessage.text || "📷 Photo"}`
+                              : `Chat with @${c.otherUser}`}
+                          </div>
+                        </div>
+                        {c.unread > 0 && (
+                          <span style={{ minWidth:20, height:20, borderRadius:10, background:"#3b82f6", color:"#fff", fontSize:11, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px", flexShrink:0 }}>{c.unread}</span>
+                        )}
+                      </div>
+                    ))}
+                  </>
                 )}
 
-                <div style={{ padding: "10px 16px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                  <button style={{
-                    width: "100%", padding: "8px", borderRadius: 9,
-                    background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.25)",
-                    color: "#60a5fa", fontFamily: "Outfit,sans-serif",
-                    fontSize: 13, fontWeight: 600, cursor: "pointer",
-                  }} onClick={() => { navigate("/student/my-requests"); setNotifOpen(false); }}>
-                    View All Requests →
+                {/* Social / DM Chats */}
+                {dmChats.length > 0 && (
+                  <>
+                    <div style={{ padding:"6px 16px 4px", fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:"0.5px" }}>
+                      Social Messages
+                    </div>
+                    {dmChats.map(c => (
+                      <div key={c._id || c.otherUser} className="notif-item"
+                        onClick={() => { navigate(`/student/social/${c.otherUser}`); setNotifOpen(false); }}>
+                        <div className="notif-item-dot" />
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:13, fontWeight:600, marginBottom:2 }}>@{c.otherUser}</div>
+                          <div style={{ fontSize:12, color:"rgba(255,255,255,0.4)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                            {c.lastMessage?.text || "New message"}
+                          </div>
+                        </div>
+                        <span style={{ minWidth:20, height:20, borderRadius:10, background:"#8b5cf6", color:"#fff", fontSize:11, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 5px", flexShrink:0 }}>{c.unread}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {unread === 0 && chatSummary.chats.length === 0 && dmChats.length === 0 && (
+                  <div className="notif-empty">
+                    <div style={{ fontSize:28, marginBottom:8 }}>🔔</div>
+                    No new notifications
+                  </div>
+                )}
+
+                <div style={{ padding:"10px 16px", borderTop:"1px solid rgba(255,255,255,0.06)", display:"flex", gap:8 }}>
+                  <button style={{ flex:1, padding:"7px", borderRadius:9, background:"rgba(59,130,246,0.12)", border:"1px solid rgba(59,130,246,0.25)", color:"#60a5fa", fontFamily:"Outfit,sans-serif", fontSize:12, fontWeight:600, cursor:"pointer" }}
+                    onClick={() => { navigate("/student/messages"); setNotifOpen(false); }}>
+                    💬 Exchange
+                  </button>
+                  <button style={{ flex:1, padding:"7px", borderRadius:9, background:"rgba(139,92,246,0.12)", border:"1px solid rgba(139,92,246,0.25)", color:"#a78bfa", fontFamily:"Outfit,sans-serif", fontSize:12, fontWeight:600, cursor:"pointer" }}
+                    onClick={() => { navigate("/student/social"); setNotifOpen(false); }}>
+                    🌐 Social
                   </button>
                 </div>
               </div>
