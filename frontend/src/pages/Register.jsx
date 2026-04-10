@@ -65,6 +65,13 @@ function Register() {
   const [showPw,   setShowPw]   = useState(false);
   const [showCf,   setShowCf]   = useState(false);
 
+  /* step 4 — email verification */
+  const [verifyOtp,     setVerifyOtp]     = useState(Array(6).fill(""));
+  const [registeredEmail, setRegisteredEmail] = useState("");
+  const [resendCooldown,  setResendCooldown]  = useState(0);
+  const verifyRefs = Array.from({ length: 6 }, () => null);
+  const verifyRefsArr = [];
+
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState("");
   const [success, setSuccess] = useState("");
@@ -108,14 +115,50 @@ function Register() {
         university: finalUni, rollNo, course,
         idCard: idDataUrl,
       });
+      setRegisteredEmail(email);
       setSuccess(data.message);
-      setTimeout(() => navigate("/"), 1800);
+      setResendCooldown(60);
+      setStep(4); // go to email verification step
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed.");
     } finally { setLoading(false); }
   };
 
-  const stepLabels = ["Your Info", "ID Card", "Credentials"];
+  const handleVerifyEmail = async () => {
+    const code = verifyOtp.join("");
+    if (code.length < 6) return setError("Enter the complete 6-digit code.");
+    setError(""); setLoading(true);
+    try {
+      const { data } = await axios.post(`${API}/auth/verify-registration-email`, { email: registeredEmail, otp: code });
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+        setSuccess("Email verified! Redirecting…");
+        setTimeout(() => navigate("/student"), 1200);
+      } else {
+        setSuccess(data.message);
+        setTimeout(() => navigate("/"), 1500);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || "Verification failed.");
+    } finally { setLoading(false); }
+  };
+
+  const handleResendVerify = async () => {
+    if (resendCooldown > 0) return;
+    setError(""); setLoading(true);
+    try {
+      await axios.post(`${API}/auth/resend-verify-email`, { email: registeredEmail });
+      setSuccess("New code sent!"); setResendCooldown(60);
+    } catch (err) { setError(err.response?.data?.message || "Failed"); }
+    finally { setLoading(false); }
+  };
+
+  // countdown for resend
+  if (resendCooldown > 0) {
+    setTimeout(() => setResendCooldown(c => c > 0 ? c - 1 : 0), 1000);
+  }
+
+  const stepLabels = ["Your Info", "ID Card", "Credentials", "Verify Email"];
 
   return (
     <div className="campus-page">
@@ -141,7 +184,9 @@ function Register() {
           <div className="step-line" />
           <div className={`step-dot ${step === 2 ? "active" : step > 2 ? "done" : ""}`} />
           <div className="step-line" />
-          <div className={`step-dot ${step === 3 ? "active" : ""}`} />
+          <div className={`step-dot ${step === 3 ? "active" : step > 3 ? "done" : ""}`} />
+          <div className="step-line" />
+          <div className={`step-dot ${step === 4 ? "active" : ""}`} />
         </div>
 
         {error   && <div className="auth-error">⚠️ {error}</div>}
@@ -292,16 +337,65 @@ function Register() {
           </>
         )}
 
-        <div className="auth-divider">
-          <div className="auth-divider-line" />
-          <span>or</span>
-          <div className="auth-divider-line" />
-        </div>
+        {/* ── STEP 4: Email Verification ── */}
+        {step === 4 && (
+          <>
+            <div style={{ textAlign:"center", marginBottom:20 }}>
+              <div style={{ fontSize:48, marginBottom:8 }}>📧</div>
+              <div style={{ fontSize:16, fontWeight:700, color:"#fff", marginBottom:6 }}>Verify your email</div>
+              <div style={{ fontSize:13, color:"rgba(255,255,255,0.5)", lineHeight:1.6 }}>
+                We sent a 6-digit code to<br />
+                <strong style={{ color:"#60a5fa" }}>{registeredEmail}</strong>
+              </div>
+            </div>
 
-        <p className="auth-switch">
-          Already have an account?
-          <span className="auth-link" onClick={() => navigate("/")}>Sign in</span>
-        </p>
+            <div className="otp-boxes" style={{ marginBottom:16 }}>
+              {verifyOtp.map((v, i) => (
+                <input key={i}
+                  ref={el => verifyRefsArr[i] = el}
+                  className="otp-box" maxLength={1} value={v}
+                  onChange={e => {
+                    const val = e.target.value.replace(/\D/,"").slice(-1);
+                    const next = [...verifyOtp]; next[i] = val; setVerifyOtp(next);
+                    if (val && i < 5) verifyRefsArr[i+1]?.focus();
+                  }}
+                  onKeyDown={e => { if (e.key==="Backspace" && !v && i > 0) verifyRefsArr[i-1]?.focus(); }}
+                  onPaste={e => {
+                    const p = e.clipboardData.getData("text").replace(/\D/g,"").slice(0,6);
+                    if (p.length === 6) { setVerifyOtp(p.split("")); verifyRefsArr[5]?.focus(); }
+                  }}
+                />
+              ))}
+            </div>
+
+            <button className="auth-btn" onClick={handleVerifyEmail} disabled={loading || verifyOtp.join("").length < 6}>
+              {loading ? "Verifying…" : "Verify Email →"}
+            </button>
+
+            <div style={{ textAlign:"center", marginTop:14, fontSize:13, color:"rgba(255,255,255,0.4)" }}>
+              Didn't receive it?{" "}
+              <span
+                onClick={handleResendVerify}
+                style={{ color: resendCooldown > 0 ? "rgba(255,255,255,0.3)" : "#60a5fa", cursor: resendCooldown > 0 ? "default" : "pointer", fontWeight:600 }}>
+                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
+              </span>
+            </div>
+          </>
+        )}
+
+        {step < 4 && (
+          <>
+            <div className="auth-divider">
+              <div className="auth-divider-line" />
+              <span>or</span>
+              <div className="auth-divider-line" />
+            </div>
+            <p className="auth-switch">
+              Already have an account?
+              <span className="auth-link" onClick={() => navigate("/")}>Sign in</span>
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

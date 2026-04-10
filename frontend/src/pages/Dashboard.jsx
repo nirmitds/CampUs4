@@ -79,7 +79,7 @@ function Dashboard() {
         <p className="page-sub">Here's what's happening on your campus today.</p>
       </div>
 
-      <VerifyBanner idVerified={idVerified} blockedActions={!isVerified ? ["Exchange", "Social Chat", "Post Requests"] : []} />
+      <VerifyBanner idVerified={idVerified} emailVerified={emailVerified} blockedActions={!isVerified ? ["Exchange", "Social Chat", "Post Requests"] : []} />
 
       {/* stats */}
       <div className="stat-grid">

@@ -192,7 +192,7 @@ export default function Exchange() {
   const navigate = useNavigate();
   const me  = myUsername();
   const uni = myUniversity();
-  const { idVerified, isVerified } = useVerification();
+  const { idVerified, emailVerified, isVerified } = useVerification();
 
   const [feed,        setFeed]        = useState({ myUni:[], nearby:[], others:[], myUniversity:"" });
   const [showCreate,  setShowCreate]  = useState(false);
@@ -297,7 +297,7 @@ export default function Exchange() {
         </div>
       </div>
 
-      <VerifyBanner idVerified={idVerified} blockedActions={!isVerified ? ["Post Request", "Accept Request"] : []} />
+      <VerifyBanner idVerified={idVerified} emailVerified={emailVerified} blockedActions={!isVerified ? ["Post Request", "Accept Request"] : []} />
       {/* open request warning */}
       {myOpenReq && (
         <div style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.3)", borderRadius:12, padding:"12px 16px", marginBottom:16, display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>

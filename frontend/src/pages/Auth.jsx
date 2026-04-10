@@ -36,7 +36,7 @@ function OtpBoxes({ otp, setOtp }) {
 
 function Auth() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState("password"); // password | otp | forgot | reset
+  const [mode, setMode] = useState("password"); // password | otp | forgot | verify-email
 
   /* password */
   const [identifier, setIdentifier] = useState("");
@@ -83,8 +83,14 @@ function Auth() {
       localStorage.setItem("token", data.token);
       navigate("/student");
     } catch (err) {
-      // If student login fails, try faculty login automatically
-      if (err.response?.status === 401 || err.response?.status === 404) {
+      if (err.response?.data?.code === "EMAIL_UNVERIFIED") {
+        // redirect to a verify page with the email
+        setError("");
+        setMode("verify-email");
+        setOtpId(err.response.data.email || identifier);
+        setSuccess("Your email is not verified. Enter the code sent to your email.");
+        setCooldown(0);
+      } else if (err.response?.status === 401 || err.response?.status === 404) {
         try {
           const { data: fData } = await axios.post(`${API}/faculty/login`, { facultyId: identifier, password }, { timeout: 60000 });
           localStorage.setItem("facultyToken", fData.token);
@@ -92,8 +98,10 @@ function Auth() {
           navigate("/faculty/dashboard");
           return;
         } catch {}
+        setError(err.response?.data?.message || "Login failed.");
+      } else {
+        setError(err.response?.data?.message || "Login failed.");
       }
-      setError(err.response?.data?.message || "Login failed.");
     } finally { setLoading(false); }
   };
 
@@ -265,6 +273,45 @@ function Auth() {
             <p className="auth-hint" style={{ marginTop:14, textAlign:"center" }}>
               <span style={{ color:"#60a5fa", cursor:"pointer", fontWeight:600 }} onClick={() => { setMode("password"); setError(""); setSuccess(""); }}>← Back to login</span>
             </p>
+          </>
+        )}
+
+        {/* VERIFY EMAIL (after registration) */}
+        {mode === "verify-email" && (
+          <>
+            <div style={{ textAlign:"center", marginBottom:16 }}>
+              <div style={{ fontSize:40, marginBottom:8 }}>📧</div>
+              <div style={{ fontSize:14, fontWeight:700, color:"#fff", marginBottom:4 }}>Verify your email</div>
+              <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>
+                Enter the code sent to <strong style={{ color:"#60a5fa" }}>{otpId}</strong>
+              </div>
+            </div>
+            <OtpBoxes otp={otp} setOtp={setOtp} />
+            <button className="auth-btn" style={{ marginTop:12 }} disabled={loading || otp.join("").length < 6}
+              onClick={async () => {
+                setError(""); setLoading(true);
+                try {
+                  const { data } = await axios.post(`${API}/auth/verify-registration-email`, { email: otpId, otp: otp.join("") }, { timeout: 60000 });
+                  if (data.token) { localStorage.setItem("token", data.token); navigate("/student"); }
+                  else { setSuccess(data.message); setTimeout(() => navigate("/"), 1500); }
+                } catch (e) { setError(e.response?.data?.message || "Verification failed."); }
+                finally { setLoading(false); }
+              }}>
+              {loading ? "Verifying…" : "Verify & Sign In →"}
+            </button>
+            <div style={{ textAlign:"center", marginTop:12, fontSize:12, color:"rgba(255,255,255,0.4)" }}>
+              <span style={{ color:"#60a5fa", cursor:"pointer" }}
+                onClick={async () => {
+                  try { await axios.post(`${API}/auth/resend-verify-email`, { email: otpId }); setSuccess("Code resent!"); }
+                  catch (e) { setError(e.response?.data?.message || "Failed"); }
+                }}>
+                Resend code
+              </span>
+              {" · "}
+              <span style={{ color:"rgba(255,255,255,0.4)", cursor:"pointer" }} onClick={() => { setMode("password"); setError(""); setSuccess(""); }}>
+                Back to login
+              </span>
+            </div>
           </>
         )}
 

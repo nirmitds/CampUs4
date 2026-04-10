@@ -34,6 +34,9 @@ const userSchema = new mongoose.Schema({
   otpCode:   { type: String, default: null },
   otpExpiry: { type: Date,   default: null },
 
+  /* Email verification */
+  emailVerified: { type: Boolean, default: false },
+
   /* Active sessions — max 2 devices */
   activeSessions: [{
     sessionId: { type: String },

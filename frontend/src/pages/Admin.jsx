@@ -741,9 +741,14 @@ export default function Admin() {
                       <td style={{ fontSize:12 }}>{u.university || <span style={{ color:"rgba(255,255,255,0.25)" }}>—</span>}</td>
                       <td style={{ color:"#fbbf24", fontWeight:700 }}>💰 {u.coins}</td>
                       <td>
-                        <span className={`badge-sm ${u.idVerified==="verified"?"badge-green":u.idVerified==="pending"?"badge-yellow":u.idVerified==="rejected"?"badge-red":"badge-gray"}`}>
-                          {u.idVerified || "none"}
-                        </span>
+                        <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                          <span className={`badge-sm ${u.idVerified==="verified"?"badge-green":u.idVerified==="pending"?"badge-yellow":u.idVerified==="rejected"?"badge-red":"badge-gray"}`}>
+                            🪪 {u.idVerified || "none"}
+                          </span>
+                          <span className={`badge-sm ${u.emailVerified?"badge-green":"badge-red"}`}>
+                            📧 {u.emailVerified ? "verified" : "unverified"}
+                          </span>
+                        </div>
                       </td>
                       <td>
                         <span className={`badge-sm ${u.role==="admin"?"badge-blue":"badge-gray"}`}>{u.role}</span>
@@ -793,6 +798,16 @@ export default function Admin() {
                           }
                           {u.role !== "admin" && (
                             <>
+                              {/* Email verify toggle */}
+                              <button className={`admin-btn ${u.emailVerified ? "admin-btn-red" : "admin-btn-green"}`}
+                                onClick={async () => {
+                                  try {
+                                    await axios.put(`${API}/admin/users/${u._id}/verify-email`, { emailVerified: !u.emailVerified }, { headers: hdrs() });
+                                    loadAll();
+                                  } catch (e) { alert(e.response?.data?.message || "Failed"); }
+                                }}>
+                                {u.emailVerified ? "📧 Unverify" : "📧 Verify"}
+                              </button>
                               <button className="admin-btn" style={{ background:"rgba(6,182,212,0.12)", border:"1px solid rgba(6,182,212,0.25)", color:"#22d3ee" }}
                                 onClick={() => setSessionsUser(sessionsUser===u._id ? null : u._id)}>
                                 📱 {u.activeSessions?.length || 0}/2

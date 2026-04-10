@@ -137,7 +137,7 @@ const TX_ICONS = {
 
 export default function Wallet() {
   const navigate = useNavigate();
-  const { idVerified, isVerified } = useVerification();
+  const { idVerified, emailVerified, isVerified } = useVerification();
 
   // ── all state at top level ──
   const [coins,      setCoins]      = useState(null);
@@ -288,7 +288,7 @@ export default function Wallet() {
   return (
     <div className="dash-page">
       {toast && <div className="earn-toast">{toast}</div>}
-      <VerifyBanner idVerified={idVerified} blockedActions={!isVerified ? ["Add Coins", "Transfer Coins"] : []} />
+      <VerifyBanner idVerified={idVerified} emailVerified={emailVerified} blockedActions={!isVerified ? ["Add Coins", "Transfer Coins"] : []} />
 
       {/* ── QR Deposit Modal ── */}
       {showBuy && (

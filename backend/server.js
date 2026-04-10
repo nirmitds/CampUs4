@@ -164,7 +164,15 @@ if (!process.env.MONGO_URI) {
   process.exit(1);
 }
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB Connected to Atlas"))
+  .then(async () => {
+    console.log("✅ MongoDB Connected to Atlas");
+    // Migration: mark all existing users as email verified so they aren't locked out
+    const result = await User.updateMany(
+      { emailVerified: { $exists: false } },
+      { $set: { emailVerified: true } }
+    );
+    if (result.modifiedCount > 0) console.log(`✅ Migrated ${result.modifiedCount} existing users → emailVerified: true`);
+  })
   .catch(err => {
     console.error("❌ MongoDB Connection Failed:", err.message);
     process.exit(1); // crash so Render shows the real error
@@ -406,6 +414,10 @@ app.post("/auth/register", async (req, res) => {
     const exists = await User.findOne({ $or: [{ username }, { email }] });
     if (exists) return res.status(400).json({ message: "Username or email already taken" });
 
+    // Generate email verification OTP
+    const verifyOtp    = generateOTP();
+    const verifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
     const hashed = await bcrypt.hash(password, 10);
     const newUser = await User.create({
       name, username, email, password: hashed, phone,
@@ -413,43 +425,112 @@ app.post("/auth/register", async (req, res) => {
       rollNo:     rollNo     || "",
       course:     course     || "",
       idCard:     idCard     || null,
-      idVerified: idCard ? "pending" : "none",
+      idVerified:    idCard ? "pending" : "none",
+      emailVerified: false,
+      otpCode:   verifyOtp,
+      otpExpiry: verifyExpiry,
     });
+
+    /* send email verification */
+    if (emailReady) {
+      await transporter.sendMail({
+        from: process.env.MAIL_FROM || `"CampUs 🎓" <${process.env.MAIL_USER}>`,
+        to: email,
+        subject: `${verifyOtp} — Verify your CampUs email`,
+        html: `
+          <div style="font-family:sans-serif;max-width:480px;margin:auto;background:#0a0a1a;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(59,130,246,0.2)">
+            <div style="font-size:32px;margin-bottom:8px">🎓</div>
+            <h2 style="margin:0 0 4px;color:#60a5fa">Welcome to CampUs, ${name}!</h2>
+            <p style="color:rgba(255,255,255,0.5);margin:0 0 24px;font-size:14px">Verify your email to activate your account.</p>
+            <div style="background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.3);border-radius:16px;padding:28px;text-align:center;margin-bottom:24px">
+              <div style="font-size:48px;font-weight:900;letter-spacing:14px;color:#fff;font-family:'Courier New',monospace">${verifyOtp}</div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:8px">Valid for 24 hours</div>
+            </div>
+            <p style="color:rgba(255,255,255,0.3);font-size:12px;text-align:center">If you didn't create a CampUs account, ignore this email.</p>
+          </div>
+        `
+      }).catch(e => console.warn("Verify email failed:", e.message));
+    } else {
+      console.log(`\n📧 EMAIL VERIFY OTP for ${email}: ${verifyOtp}\n`);
+    }
+
     /* log welcome bonus */
     await addCoins(username, 100, "Welcome to CampUs! 🎓", "bonus");
 
-    /* notify admin via email */
+    /* notify admin */
     if (emailReady && process.env.MAIL_USER) {
       const now = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "full", timeStyle: "medium" });
       transporter.sendMail({
         from: process.env.MAIL_FROM || `"CampUs 🎓" <${process.env.MAIL_USER}>`,
         to: process.env.MAIL_USER,
         subject: `New Student Registered — ${name} (@${username})`,
-        html: `
-          <div style="font-family:sans-serif;max-width:480px;margin:auto;background:#0a0a1a;color:#fff;border-radius:16px;padding:28px;border:1px solid rgba(59,130,246,0.2)">
-            <h2 style="margin:0 0 16px;color:#60a5fa">New Student Registration</h2>
-            <table style="width:100%;border-collapse:collapse;font-size:14px">
-              <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5);width:120px">Name</td><td style="padding:8px 0;font-weight:600">${name}</td></tr>
-              <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">Username</td><td style="padding:8px 0">@${username}</td></tr>
-              <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">Email</td><td style="padding:8px 0">${email}</td></tr>
-              <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">Phone</td><td style="padding:8px 0">${phone}</td></tr>
-              <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">University</td><td style="padding:8px 0">${university || "—"}</td></tr>
-              <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">Roll No</td><td style="padding:8px 0">${rollNo || "—"}</td></tr>
-              <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">Course</td><td style="padding:8px 0">${course || "—"}</td></tr>
-              <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">ID Card</td><td style="padding:8px 0">${idCard ? "✅ Uploaded (pending verification)" : "❌ Not uploaded"}</td></tr>
-              <tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">Registered At</td><td style="padding:8px 0;color:#fbbf24">${now}</td></tr>
-            </table>
-            <a href="${process.env.APP_URL || "https://campus44.onrender.com"}/admin/dashboard" style="display:inline-block;margin-top:20px;padding:10px 20px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:13px">View in Admin Panel →</a>
-          </div>
-        `
-      }).catch(e => console.warn("Admin notify failed:", e.message));
+        html: `<div style="font-family:sans-serif;max-width:480px;margin:auto;background:#0a0a1a;color:#fff;border-radius:16px;padding:28px;border:1px solid rgba(59,130,246,0.2)"><h2 style="margin:0 0 16px;color:#60a5fa">New Student Registration</h2><table style="width:100%;border-collapse:collapse;font-size:14px"><tr><td style="padding:8px 0;color:rgba(255,255,255,0.5);width:120px">Name</td><td style="padding:8px 0;font-weight:600">${name}</td></tr><tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">Email</td><td style="padding:8px 0">${email}</td></tr><tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">University</td><td style="padding:8px 0">${university || "—"}</td></tr><tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">Registered At</td><td style="padding:8px 0;color:#fbbf24">${now}</td></tr></table></div>`
+      }).catch(() => {});
     }
 
-    res.json({ message: "Account created successfully! Please sign in." });
+    res.json({
+      message: emailReady
+        ? `Account created! Check ${email} for your verification code.`
+        : "Account created! Check server console for verification code.",
+      requiresEmailVerification: true,
+      email,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Registration failed" });
   }
+});
+
+/* ── VERIFY EMAIL after registration ── */
+app.post("/auth/verify-registration-email", async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ message: "Email and OTP required" });
+
+    const user = await User.findOne({ email: email.trim().toLowerCase() });
+    if (!user) return res.status(404).json({ message: "No account found with this email" });
+    if (user.emailVerified) return res.json({ message: "Email already verified", token: signToken(user) });
+    if (!user.otpCode) return res.status(400).json({ message: "No verification code found. Register again." });
+    if (new Date() > new Date(user.otpExpiry)) {
+      return res.status(400).json({ message: "Verification code expired. Please register again." });
+    }
+    if (user.otpCode !== otp.trim()) return res.status(400).json({ message: "Incorrect code" });
+
+    user.emailVerified = true;
+    user.otpCode   = null;
+    user.otpExpiry = null;
+    await user.save();
+
+    res.json({ message: "Email verified! You can now sign in.", token: signToken(user) });
+  } catch (err) { res.status(500).json({ message: "Verification failed" }); }
+});
+
+/* ── RESEND email verification OTP ── */
+app.post("/auth/resend-verify-email", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email required" });
+    const user = await User.findOne({ email: email.trim().toLowerCase() });
+    if (!user) return res.status(404).json({ message: "No account found" });
+    if (user.emailVerified) return res.status(400).json({ message: "Email already verified" });
+
+    const otp    = generateOTP();
+    const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    user.otpCode   = otp;
+    user.otpExpiry = expiry;
+    await user.save();
+
+    if (emailReady) {
+      await transporter.sendMail({
+        from: process.env.MAIL_FROM || `"CampUs 🎓" <${process.env.MAIL_USER}>`,
+        to: email,
+        subject: `${otp} — Verify your CampUs email`,
+        html: `<div style="font-family:sans-serif;max-width:480px;margin:auto;background:#0a0a1a;color:#fff;border-radius:16px;padding:32px"><h2 style="color:#60a5fa">Verify your email</h2><div style="background:rgba(59,130,246,0.12);border-radius:16px;padding:28px;text-align:center;margin:20px 0"><div style="font-size:48px;font-weight:900;letter-spacing:14px;color:#fff;font-family:monospace">${otp}</div></div><p style="color:rgba(255,255,255,0.4);font-size:12px;text-align:center">Valid for 24 hours</p></div>`
+      });
+    } else { console.log(`📧 RESEND VERIFY OTP for ${email}: ${otp}`); }
+
+    res.json({ message: `Verification code sent to ${email}` });
+  } catch (err) { res.status(500).json({ message: "Failed" }); }
 });
 
 /* ── SEND PHONE OTP FOR REGISTRATION ── */
@@ -527,6 +608,15 @@ app.post("/auth/login", async (req, res) => {
     const user = await User.findOne({ $or: [{ username }, { email: username }] });
     if (!user) return res.status(400).json({ message: "User not found" });
     if (!user.password) return res.status(400).json({ message: "This account uses OTP login. Use the OTP tab." });
+
+    // Block login if email not verified
+    if (!user.emailVerified && user.role !== "admin") {
+      return res.status(403).json({
+        message: "Email not verified. Check your inbox for the verification code.",
+        code: "EMAIL_UNVERIFIED",
+        email: user.email,
+      });
+    }
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(400).json({ message: "Incorrect password" });
@@ -668,10 +758,12 @@ app.post("/auth/verify-otp", async (req, res) => {
 
     /* success */
     user.otpCode = null; user.otpExpiry = null;
+    // OTP login counts as email verification
+    if (!user.emailVerified) { user.emailVerified = true; }
     await user.save();
 
     const token = signToken(user);
-    recordLogin(user._id, req, token); // async, don't await
+    recordLogin(user._id, req, token);
     res.json({ token });
   } catch (err) {
     console.error(err);
@@ -855,15 +947,14 @@ function adminOnly(req, res, next) {
 /* block unverified students from key actions */
 async function requireVerified(req, res, next) {
   try {
-    const user = await User.findById(req.user.id).select("idVerified role");
+    const user = await User.findById(req.user.id).select("idVerified emailVerified role");
     if (!user) return res.status(401).json({ message: "User not found" });
-    if (user.role === "admin") return next(); // admins always pass
+    if (user.role === "admin") return next();
+    if (!user.emailVerified) {
+      return res.status(403).json({ message: "Email verification required", code: "EMAIL_UNVERIFIED" });
+    }
     if (user.idVerified !== "verified") {
-      return res.status(403).json({
-        message: "ID verification required",
-        code: "UNVERIFIED",
-        idVerified: user.idVerified || "none"
-      });
+      return res.status(403).json({ message: "ID verification required", code: "UNVERIFIED", idVerified: user.idVerified || "none" });
     }
     next();
   } catch { res.status(500).json({ message: "Server error" }); }
@@ -968,6 +1059,15 @@ app.delete("/admin/users/:id", verifyToken, adminOnly, async (req, res) => {
     if (user.role === "admin") return res.status(403).json({ message: "Cannot delete admin accounts" });
     await User.findByIdAndDelete(req.params.id);
     res.json({ message: `User @${user.username} deleted` });
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* admin toggle email verification for a user */
+app.put("/admin/users/:id/verify-email", verifyToken, adminOnly, async (req, res) => {
+  try {
+    const { emailVerified } = req.body;
+    await User.findByIdAndUpdate(req.params.id, { emailVerified: !!emailVerified });
+    res.json({ message: `Email ${emailVerified ? "verified" : "unverified"}` });
   } catch (err) { res.status(500).json({ message: "Server error" }); }
 });
 

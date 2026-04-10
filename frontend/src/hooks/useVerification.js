@@ -6,17 +6,23 @@ const tok = () => localStorage.getItem("token");
 const hdrs = () => ({ Authorization: `Bearer ${tok()}` });
 
 export function useVerification() {
-  const [idVerified, setIdVerified] = useState(null); // null = loading
+  const [idVerified,    setIdVerified]    = useState(null);
+  const [emailVerified, setEmailVerified] = useState(null);
 
   useEffect(() => {
-    if (!tok()) { setIdVerified("none"); return; }
+    if (!tok()) { setIdVerified("none"); setEmailVerified(false); return; }
     axios.get(`${API}/auth/me`, { headers: hdrs() })
-      .then(r => setIdVerified(r.data.user?.idVerified || "none"))
-      .catch(() => setIdVerified("none"));
+      .then(r => {
+        setIdVerified(r.data.user?.idVerified || "none");
+        setEmailVerified(r.data.user?.emailVerified ?? true); // default true for existing users
+      })
+      .catch(() => { setIdVerified("none"); setEmailVerified(false); });
   }, []);
 
-  const isVerified = idVerified === "verified";
-  const isLoading  = idVerified === null;
+  const isEmailVerified = emailVerified === true;
+  const isIdVerified    = idVerified === "verified";
+  const isVerified      = isEmailVerified && isIdVerified;
+  const isLoading       = idVerified === null;
 
-  return { idVerified, isVerified, isLoading };
+  return { idVerified, emailVerified, isEmailVerified, isIdVerified, isVerified, isLoading };
 }

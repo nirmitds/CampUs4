@@ -147,7 +147,7 @@ export default function SocialChat() {
   const navigate = useNavigate();
   const { username: routeUser } = useParams();
   const me = myName();
-  const { idVerified, isVerified } = useVerification();
+  const { idVerified, emailVerified, isVerified } = useVerification();
 
   const [seg,       setSeg]       = useState("chats"); // chats | requests | people
   const [convs,     setConvs]     = useState([]);
