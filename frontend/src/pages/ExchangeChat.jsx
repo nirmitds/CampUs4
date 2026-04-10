@@ -467,6 +467,12 @@ export default function ExchangeChat() {
           <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
             {request.coins > 0 && <span className="badge" style={{ background:"rgba(251,191,36,0.12)", color:"#fbbf24", fontSize:11 }}>💰 {request.coins}</span>}
             <span className="badge badge-yellow" style={{ fontSize:11 }}>{request.status}</span>
+            <button
+              style={{ padding:"4px 10px", borderRadius:7, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.2)", color:"#f87171", fontFamily:"Outfit,sans-serif", fontSize:11, fontWeight:600, cursor:"pointer" }}
+              onClick={() => { if(confirm("Hide this chat? It will be removed from your messages list.")) { navigate("/student/messages"); } }}
+              title="Hide chat">
+              Hide
+            </button>
           </div>
         </div>
       </div>
@@ -542,7 +548,10 @@ export default function ExchangeChat() {
           ) : (
             <div key={item._id} className={`msg-row ${item.sender===me?"mine":""}`}>
               <Avatar username={item.sender} />
-              <div className="msg-col">
+              <div className="msg-col"
+                onContextMenu={e => { e.preventDefault(); if (item.sender===me) { if(confirm("Delete this message?")) { axios.delete(`${API}/chat/message/${item._id}`, { headers:hdrs() }).then(() => setMessages(prev => prev.filter(m => m._id !== item._id))).catch(()=>{}); } } }}
+                onTouchStart={e => { if (item.sender===me) { const t = setTimeout(() => { if(confirm("Delete this message?")) { axios.delete(`${API}/chat/message/${item._id}`, { headers:hdrs() }).then(() => setMessages(prev => prev.filter(m => m._id !== item._id))).catch(()=>{}); } }, 600); e.currentTarget._lp = t; } }}
+                onTouchEnd={e => { clearTimeout(e.currentTarget._lp); }}>
                 {item.sender !== me && <div className="msg-sender">@{item.sender}</div>}
                 {item.type === "image" ? (
                   <img src={item.image} alt="shared" className="msg-img" onClick={() => setLightbox(item.image)} />

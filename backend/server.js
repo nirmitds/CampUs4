@@ -1991,9 +1991,10 @@ app.get("/dm/conversations", verifyToken, async (req, res) => {
     const convs = await DirectConversation.find({ participants: me }).sort({ lastAt: -1 });
     const result = (await Promise.all(convs.map(async c => {
       const other = c.participants.find(p => p !== me);
-      if (!other) return null; // skip self-conversations or bad data
+      if (!other) return null;
+      if (c.hiddenFor?.includes(me)) return null; // skip hidden chats
       const user  = await User.findOne({ username: other }).select("username name avatar university");
-      if (!user) return null; // skip if user deleted
+      if (!user) return null;
       const unread = c.unread?.get ? (c.unread.get(me) || 0) : (c.unread?.[me] || 0);
       return { convId: c._id, other, user, lastMessage: c.lastMessage, lastAt: c.lastAt, unread, isRequest: c.isRequest };
     }))).filter(Boolean); // remove nulls
@@ -2099,6 +2100,49 @@ app.get("/dm/unread/count", verifyToken, async (req, res) => {
       return a + n;
     }, 0);
     res.json({ total });
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* delete a DM message (only sender can delete) */
+app.delete("/dm/message/:msgId", verifyToken, async (req, res) => {
+  try {
+    const msg = await DirectMessage.findById(req.params.msgId);
+    if (!msg) return res.status(404).json({ message: "Message not found" });
+    if (msg.sender !== req.user.username) return res.status(403).json({ message: "Can only delete your own messages" });
+    await DirectMessage.findByIdAndDelete(req.params.msgId);
+    // update conv lastMessage if this was the last one
+    const conv = await DirectConversation.findById(msg.conversationId);
+    if (conv) {
+      const last = await DirectMessage.findOne({ conversationId: conv._id }).sort({ createdAt: -1 });
+      conv.lastMessage = last ? { text: last.text || "📷 Photo", sender: last.sender } : null;
+      await conv.save();
+    }
+    res.json({ message: "Deleted" });
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* hide/archive a DM conversation (only for the requesting user) */
+app.put("/dm/:username/hide", verifyToken, async (req, res) => {
+  try {
+    const me = req.user.username;
+    const conv = await DirectConversation.findOne({ participants: { $all: [[me, req.params.username].sort()] } })
+      || await DirectConversation.findOne({ participants: { $all: [me, req.params.username] } });
+    if (!conv) return res.status(404).json({ message: "Conversation not found" });
+    if (!conv.hiddenFor) conv.hiddenFor = [];
+    if (!conv.hiddenFor.includes(me)) conv.hiddenFor.push(me);
+    await conv.save();
+    res.json({ message: "Chat hidden" });
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* delete exchange chat message */
+app.delete("/chat/message/:msgId", verifyToken, async (req, res) => {
+  try {
+    const msg = await Message.findById(req.params.msgId);
+    if (!msg) return res.status(404).json({ message: "Message not found" });
+    if (msg.sender !== req.user.username) return res.status(403).json({ message: "Can only delete your own messages" });
+    await Message.findByIdAndDelete(req.params.msgId);
+    res.json({ message: "Deleted" });
   } catch (err) { res.status(500).json({ message: "Server error" }); }
 });
 

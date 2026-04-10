@@ -2,10 +2,11 @@ const mongoose = require("mongoose");
 
 const dmSchema = new mongoose.Schema({
   participants: [{ type: String }],
-  lastMessage:  { type: String, default: "" },
+  lastMessage:  { type: mongoose.Schema.Types.Mixed, default: null },
   lastAt:       { type: Date, default: Date.now },
   unread:       { type: Map, of: Number, default: {} },
-  isRequest:    { type: Boolean, default: false }, // true = pending friend request
+  isRequest:    { type: Boolean, default: false },
+  hiddenFor:    [{ type: String }], // usernames who hid this chat
 }, { timestamps: true });
 
 dmSchema.index({ participants: 1 });

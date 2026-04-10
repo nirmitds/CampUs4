@@ -35,6 +35,7 @@ if (!document.getElementById(SC)) {
     /* conv row */
     .sc-row { display:flex; gap:12px; align-items:center; padding:12px 16px; cursor:pointer; transition:background 0.12s; position:relative; }
     .sc-row:hover { background:rgba(255,255,255,0.04); }
+    .sc-row:hover .sc-hide-btn { opacity:1 !important; }
     .sc-row.active { background:rgba(59,130,246,0.1); }
     .sc-row.active::before { content:''; position:absolute; left:0; top:15%; bottom:15%; width:3px; border-radius:0 3px 3px 0; background:linear-gradient(180deg,#3b82f6,#8b5cf6); }
     .sc-av { width:46px; height:46px; border-radius:50%; background:linear-gradient(135deg,#3b82f6,#8b5cf6); display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:800; color:#fff; overflow:hidden; flex-shrink:0; border:2px solid rgba(59,130,246,0.2); }
@@ -359,16 +360,27 @@ export default function SocialChat() {
         <div className="sc-list">
           {/* CHATS */}
           {seg === "chats" && normalConvs.filter(c => c.other).map(c => (
-            <div key={c.convId} className={`sc-row ${active===c.other?"active":""}`} onClick={() => setActive(c.other)}>
-              <Av user={c.user} size={46} />
-              <div className="sc-row-body">
-                <div className="sc-row-name">@{c.other}</div>
-                <div className={`sc-row-sub ${c.unread>0?"bold":""}`}>{c.lastMessage?.text || c.lastMessage || "Say hi!"}</div>
+            <div key={c.convId} className={`sc-row ${active===c.other?"active":""}`}
+              style={{ position:"relative" }}
+              onContextMenu={e => { e.preventDefault(); if(confirm(`Hide chat with @${c.other}?`)) { axios.put(`${API}/dm/${c.other}/hide`, {}, { headers:hdrs() }).then(() => loadConvs()).catch(()=>{}); } }}>
+              <div style={{ flex:1, display:"flex", gap:12, alignItems:"center" }} onClick={() => setActive(c.other)}>
+                <Av user={c.user} size={46} />
+                <div className="sc-row-body">
+                  <div className="sc-row-name">@{c.other}</div>
+                  <div className={`sc-row-sub ${c.unread>0?"bold":""}`}>{c.lastMessage?.text || c.lastMessage || "Say hi!"}</div>
+                </div>
+                <div className="sc-row-meta">
+                  <div className="sc-time">{ago(c.lastAt)}</div>
+                  {c.unread > 0 && <div className="sc-unread">{c.unread}</div>}
+                </div>
               </div>
-              <div className="sc-row-meta">
-                <div className="sc-time">{ago(c.lastAt)}</div>
-                {c.unread > 0 && <div className="sc-unread">{c.unread}</div>}
-              </div>
+              {/* hide button on hover */}
+              <button
+                style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.2)", borderRadius:6, color:"#f87171", fontSize:11, padding:"3px 7px", cursor:"pointer", opacity:0, transition:"opacity 0.15s", fontFamily:"Outfit,sans-serif" }}
+                className="sc-hide-btn"
+                onClick={e => { e.stopPropagation(); if(confirm(`Hide chat with @${c.other}?`)) { axios.put(`${API}/dm/${c.other}/hide`, {}, { headers:hdrs() }).then(() => loadConvs()).catch(()=>{}); } }}>
+                Hide
+              </button>
             </div>
           ))}
           {seg === "chats" && normalConvs.length === 0 && (
@@ -475,7 +487,10 @@ export default function SocialChat() {
                 ) : (
                   <div key={item._id} className={`sc-msg-row ${item.sender===me?"mine":""}`}>
                     {item.sender !== me && <Av user={otherInfo} size={26} />}
-                    <div>
+                    <div style={{ position:"relative" }} className="sc-msg-wrap"
+                      onContextMenu={e => { e.preventDefault(); if (item.sender===me) { if(confirm("Delete this message?")) { axios.delete(`${API}/dm/message/${item._id}`, { headers:hdrs() }).then(() => setMsgs(prev => prev.filter(m => m._id !== item._id))).catch(()=>{}); } } }}
+                      onTouchStart={e => { if (item.sender===me) { const t = setTimeout(() => { if(confirm("Delete this message?")) { axios.delete(`${API}/dm/message/${item._id}`, { headers:hdrs() }).then(() => setMsgs(prev => prev.filter(m => m._id !== item._id))).catch(()=>{}); } }, 600); e.currentTarget._lp = t; } }}
+                      onTouchEnd={e => { clearTimeout(e.currentTarget._lp); }}>
                       {item.type === "image"
                         ? <img src={item.image} alt="img" className="sc-msg-img" onClick={() => setLb(item.image)} />
                         : <div className={`sc-bubble ${item.sender===me?"mine":"theirs"}`}>{item.text}</div>
