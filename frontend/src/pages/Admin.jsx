@@ -754,7 +754,15 @@ export default function Admin() {
                             <div>{new Date(u.lastLogin.at).toLocaleDateString([], { day:"numeric", month:"short" })}</div>
                             <div style={{ color:"rgba(255,255,255,0.25)" }}>{new Date(u.lastLogin.at).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" })}</div>
                             {(u.lastLogin.city || u.lastLogin.country) && (
-                              <div style={{ color:"#60a5fa", fontSize:10 }}>📍 {[u.lastLogin.city, u.lastLogin.country].filter(Boolean).join(", ")}</div>
+                              <div style={{ marginTop:2 }}>
+                                <span style={{ color:"#60a5fa", fontSize:10 }}>📍 {[u.lastLogin.city, u.lastLogin.country].filter(Boolean).join(", ")}</span>
+                                {u.lastLogin.lat && u.lastLogin.lon && (
+                                  <a href={`https://www.google.com/maps?q=${u.lastLogin.lat},${u.lastLogin.lon}`} target="_blank" rel="noreferrer"
+                                    style={{ marginLeft:4, color:"#22d3ee", fontSize:9, textDecoration:"none", background:"rgba(6,182,212,0.15)", padding:"1px 5px", borderRadius:4 }}>
+                                    Map
+                                  </a>
+                                )}
+                              </div>
                             )}
                           </div>
                         ) : <span style={{ color:"rgba(255,255,255,0.2)" }}>Never</span>}
@@ -813,15 +821,30 @@ export default function Admin() {
                             {(!u.activeSessions || u.activeSessions.length === 0) ? (
                               <div style={{ fontSize:12, color:"rgba(255,255,255,0.3)" }}>No active sessions</div>
                             ) : u.activeSessions.map((s, i) => (
-                              <div key={i} style={{ display:"flex", gap:8, alignItems:"center", padding:"6px 0", borderBottom: i < u.activeSessions.length-1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
-                                <span style={{ fontSize:16 }}>{s.device==="Mobile"?"📱":s.device==="Tablet"?"📟":"💻"}</span>
+                              <div key={i} style={{ display:"flex", gap:8, alignItems:"flex-start", padding:"8px 0", borderBottom: i < u.activeSessions.length-1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}>
+                                <span style={{ fontSize:18, flexShrink:0, marginTop:2 }}>{s.device==="Mobile"?"📱":s.device==="Tablet"?"📟":"💻"}</span>
                                 <div style={{ flex:1, minWidth:0 }}>
-                                  <div style={{ fontSize:12, fontWeight:600 }}>{s.model || s.device}</div>
+                                  <div style={{ fontSize:12, fontWeight:700 }}>{s.model || s.device}</div>
                                   <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{s.browser} · {s.os}</div>
-                                  {(s.city||s.country) && <div style={{ fontSize:10, color:"#60a5fa" }}>📍 {[s.city,s.country].filter(Boolean).join(", ")}</div>}
-                                  <div style={{ fontSize:10, color:"rgba(255,255,255,0.25)" }}>{s.loginAt ? new Date(s.loginAt).toLocaleString() : ""}</div>
+                                  {/* Location with map link */}
+                                  {(s.city || s.country) ? (
+                                    <div style={{ fontSize:11, marginTop:3 }}>
+                                      <span style={{ color:"#60a5fa" }}>📍 {[s.city, s.region, s.country].filter(Boolean).join(", ")}</span>
+                                      {s.lat && s.lon && (
+                                        <a href={`https://www.google.com/maps?q=${s.lat},${s.lon}`} target="_blank" rel="noreferrer"
+                                          style={{ marginLeft:6, color:"#22d3ee", fontSize:10, textDecoration:"none", background:"rgba(6,182,212,0.15)", padding:"1px 6px", borderRadius:4 }}>
+                                          🗺️ Map
+                                        </a>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div style={{ fontSize:11, color:"rgba(255,255,255,0.25)", marginTop:3 }}>📍 Location unavailable</div>
+                                  )}
+                                  <div style={{ fontSize:10, color:"rgba(255,255,255,0.25)", marginTop:2 }}>
+                                    IP: {s.ip || "—"} · {s.loginAt ? new Date(s.loginAt).toLocaleString() : ""}
+                                  </div>
                                 </div>
-                                <button className="admin-btn admin-btn-red" style={{ fontSize:10, padding:"3px 8px" }}
+                                <button className="admin-btn admin-btn-red" style={{ fontSize:10, padding:"3px 8px", flexShrink:0 }}
                                   onClick={async () => {
                                     try {
                                       await axios.delete(`${API}/admin/users/${u._id}/session/${s.sessionId}`, { headers: hdrs() });

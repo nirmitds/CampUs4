@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import { injectDashStyles } from "../styles/dashstyles";
 import axios from "axios";
+import VerifyBanner from "../components/VerifyBanner";
+import { useVerification } from "../hooks/useVerification";
 import API from "../api.js";
 
 injectDashStyles();
@@ -26,6 +28,7 @@ function Dashboard() {
   const [user,    setUser]    = useState(null);
   const [chats,   setChats]   = useState([]);
   const [avatars, setAvatars] = useState({});
+  const { idVerified, isVerified } = useVerification();
 
   useEffect(() => {
     if (!tok()) return;
@@ -75,6 +78,8 @@ function Dashboard() {
         </h1>
         <p className="page-sub">Here's what's happening on your campus today.</p>
       </div>
+
+      <VerifyBanner idVerified={idVerified} blockedActions={!isVerified ? ["Exchange", "Social Chat", "Post Requests"] : []} />
 
       {/* stats */}
       <div className="stat-grid">

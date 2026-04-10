@@ -36,15 +36,18 @@ const userSchema = new mongoose.Schema({
 
   /* Active sessions — max 2 devices */
   activeSessions: [{
-    sessionId: { type: String },   // unique token fingerprint
-    token:     { type: String },   // full JWT (to invalidate)
+    sessionId: { type: String },
+    token:     { type: String },
     device:    { type: String, default: "" },
-    model:     { type: String, default: "" }, // e.g. "Samsung Galaxy S21"
+    model:     { type: String, default: "" },
     browser:   { type: String, default: "" },
     os:        { type: String, default: "" },
     ip:        { type: String, default: "" },
     city:      { type: String, default: "" },
     country:   { type: String, default: "" },
+    region:    { type: String, default: "" },
+    lat:       { type: Number, default: null },
+    lon:       { type: Number, default: null },
     loginAt:   { type: Date,   default: Date.now },
   }],
 

@@ -182,18 +182,20 @@ function Auth() {
 
         {/* PASSWORD */}
         {mode === "password" && (
-          <>
+          <form onSubmit={e => { e.preventDefault(); handlePasswordLogin(); }} autoComplete="on">
             <div className="auth-field">
               <input className="auth-input" placeholder="Username or Email"
-                value={identifier} onChange={e => setIdentifier(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handlePasswordLogin()} />
+                autoComplete="username"
+                name="username"
+                value={identifier} onChange={e => setIdentifier(e.target.value)} />
             </div>
             <div className="auth-field">
               <input className="auth-input padded-right"
                 type={showPw ? "text" : "password"} placeholder="Password"
-                value={password} onChange={e => setPassword(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handlePasswordLogin()} />
-              <button className="eye-btn" onClick={() => setShowPw(!showPw)}>
+                autoComplete="current-password"
+                name="password"
+                value={password} onChange={e => setPassword(e.target.value)} />
+              <button type="button" className="eye-btn" onClick={() => setShowPw(!showPw)}>
                 {showPw ? "🙈" : "👁"}
               </button>
             </div>
@@ -203,10 +205,10 @@ function Auth() {
                 Forgot password?
               </span>
             </div>
-            <button className="auth-btn" onClick={handlePasswordLogin} disabled={loading}>
+            <button type="submit" className="auth-btn" disabled={loading}>
               {loading ? "Signing in…" : "Sign In →"}
             </button>
-          </>
+          </form>
         )}
 
         {/* FORGOT PASSWORD */}

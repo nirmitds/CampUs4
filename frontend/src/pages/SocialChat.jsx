@@ -3,6 +3,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import { io } from "socket.io-client";
 import axios from "axios";
 import { injectDashStyles } from "../styles/dashstyles";
+import VerifyBanner from "../components/VerifyBanner";
+import { useVerification } from "../hooks/useVerification";
 injectDashStyles();
 
 const SC = "campus-sc-v2";
@@ -145,6 +147,7 @@ export default function SocialChat() {
   const navigate = useNavigate();
   const { username: routeUser } = useParams();
   const me = myName();
+  const { idVerified, isVerified } = useVerification();
 
   const [seg,       setSeg]       = useState("chats"); // chats | requests | people
   const [convs,     setConvs]     = useState([]);
@@ -316,7 +319,8 @@ export default function SocialChat() {
         <div className="sc-panel-head">
           <div className="sc-panel-title">
             <span>Messages</span>
-            <button className="sc-new-btn" onClick={() => setShowNew(true)} title="New message">✏️</button>
+            <button className="sc-new-btn" onClick={() => { if (!isVerified) return; setShowNew(true); }} title="New message"
+              style={{ opacity: isVerified ? 1 : 0.4, cursor: isVerified ? "pointer" : "not-allowed" }}>✏️</button>
           </div>
           {(seg === "people") && (
             <div className="sc-search-bar">
@@ -326,6 +330,18 @@ export default function SocialChat() {
             </div>
           )}
         </div>
+
+        {/* verification banner in panel */}
+        {!isVerified && idVerified && (
+          <div style={{ padding:"10px 14px", background:"rgba(239,68,68,0.08)", borderBottom:"1px solid rgba(239,68,68,0.2)", flexShrink:0 }}>
+            <div style={{ fontSize:12, fontWeight:700, color:"#f87171", marginBottom:2 }}>
+              {idVerified === "pending" ? "⏳ Verification Pending" : "🪪 ID Verification Required"}
+            </div>
+            <div style={{ fontSize:11, color:"rgba(255,255,255,0.45)" }}>
+              {idVerified === "pending" ? "Awaiting admin review." : "Upload your ID to chat with people."}
+            </div>
+          </div>
+        )}
 
         {/* segments */}
         <div className="sc-seg">
@@ -492,12 +508,12 @@ export default function SocialChat() {
               <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleFilePick} />
               {!isReq && <button className="sc-attach" onClick={() => fileRef.current.click()}>📎</button>}
               <textarea className="sc-textarea" rows={1}
-                placeholder={isReq ? "Accept the request to reply…" : `Message @${active}…`}
-                value={text} disabled={isReq}
+                value={text} disabled={isReq || !isVerified}
                 onChange={e => { setText(e.target.value); emitTyping(e.target.value); }}
                 onKeyDown={e => { if (e.key==="Enter"&&!e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                placeholder={!isVerified ? "Verify your ID to send messages…" : isReq ? "Accept the request to reply…" : `Message @${active}…`}
               />
-              <button className="sc-send" onClick={handleSend} disabled={sending||isReq||(!text.trim()&&!imgFile)}>➤</button>
+              <button className="sc-send" onClick={handleSend} disabled={sending||isReq||(!text.trim()&&!imgFile)||!isVerified}>➤</button>
             </div>
           </>
         )}

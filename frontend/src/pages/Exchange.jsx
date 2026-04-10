@@ -2,6 +2,8 @@
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { injectDashStyles } from "../styles/dashstyles";
+import VerifyBanner from "../components/VerifyBanner";
+import { useVerification } from "../hooks/useVerification";
 
 injectDashStyles();
 
@@ -190,6 +192,7 @@ export default function Exchange() {
   const navigate = useNavigate();
   const me  = myUsername();
   const uni = myUniversity();
+  const { idVerified, isVerified } = useVerification();
 
   const [feed,        setFeed]        = useState({ myUni:[], nearby:[], others:[], myUniversity:"" });
   const [showCreate,  setShowCreate]  = useState(false);
@@ -287,12 +290,14 @@ export default function Exchange() {
         <div style={{ display:"flex", gap:10 }}>
           <button className="btn btn-ghost" onClick={() => navigate("/student/my-requests")}>📋 My Requests</button>
           <button className="btn btn-primary"
-            onClick={() => { if (myOpenReq) { alert("You already have an open request. Delete it first."); return; } setShowCreate(true); setMsg(""); }}>
+            onClick={() => { if (!isVerified) return; if (myOpenReq) { alert("You already have an open request. Delete it first."); return; } setShowCreate(true); setMsg(""); }}
+            disabled={!isVerified} style={{ opacity: isVerified ? 1 : 0.5 }}>
             + New Request
           </button>
         </div>
       </div>
 
+      <VerifyBanner idVerified={idVerified} blockedActions={!isVerified ? ["Post Request", "Accept Request"] : []} />
       {/* open request warning */}
       {myOpenReq && (
         <div style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.3)", borderRadius:12, padding:"12px 16px", marginBottom:16, display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
@@ -363,7 +368,7 @@ export default function Exchange() {
                     group={group}
                     me={me}
                     myUni={feed.myUniversity}
-                    onAccept={setAcceptModal}
+                    onAccept={isVerified ? setAcceptModal : () => alert("ID verification required to accept requests. Upload your ID card in Profile.")}
                     onDelete={handleDelete}
                     onChat={id => navigate(`/student/chat/${id}`)}
                   />

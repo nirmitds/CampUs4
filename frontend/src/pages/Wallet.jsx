@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import axios from "axios";
 import { injectDashStyles } from "../styles/dashstyles";
+import VerifyBanner from "../components/VerifyBanner";
+import { useVerification } from "../hooks/useVerification";
 
 injectDashStyles();
 
@@ -135,6 +137,7 @@ const TX_ICONS = {
 
 export default function Wallet() {
   const navigate = useNavigate();
+  const { idVerified, isVerified } = useVerification();
 
   // ── all state at top level ──
   const [coins,      setCoins]      = useState(null);
@@ -285,6 +288,7 @@ export default function Wallet() {
   return (
     <div className="dash-page">
       {toast && <div className="earn-toast">{toast}</div>}
+      <VerifyBanner idVerified={idVerified} blockedActions={!isVerified ? ["Add Coins", "Transfer Coins"] : []} />
 
       {/* ── QR Deposit Modal ── */}
       {showBuy && (
@@ -439,9 +443,11 @@ export default function Wallet() {
           </div>
         )}
         <div style={{ display:"flex", gap:10, justifyContent:"center", marginTop:20, flexWrap:"wrap" }}>
-          <button className="btn btn-primary" onClick={() => setShowBuy(true)}>💳 Buy Coins</button>
+          <button className="btn btn-primary" onClick={() => isVerified && setShowBuy(true)}
+            disabled={!isVerified} style={{ opacity: isVerified ? 1 : 0.5 }}>💳 Buy Coins</button>
           <button className="btn btn-ghost" onClick={() => setTab("earn")}>⚡ Earn Free</button>
-          <button className="btn btn-ghost" onClick={() => setShowXfer(true)}>💸 Transfer</button>
+          <button className="btn btn-ghost" onClick={() => isVerified && setShowXfer(true)}
+            disabled={!isVerified} style={{ opacity: isVerified ? 1 : 0.5 }}>💸 Transfer</button>
           <button className="btn btn-ghost" onClick={() => setTab("history")}>📜 History</button>
         </div>
       </div>

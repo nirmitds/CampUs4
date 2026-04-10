@@ -274,47 +274,61 @@ function parseDevice(ua = "") {
 /* get approximate location from IP using free ip-api.com */
 async function getIpLocation(ip) {
   try {
-    if (!ip || ip === "::1" || ip.startsWith("127.") || ip.startsWith("192.168.") || ip.startsWith("10.")) {
-      return { city: "Local", country: "Dev" };
+    if (!ip) return { city: "", country: "", lat: null, lon: null };
+    // Clean the IP
+    let cleanIp = ip.replace("::ffff:", "").trim();
+    // Skip private/local IPs
+    if (cleanIp === "::1" || cleanIp === "localhost" ||
+        cleanIp.startsWith("127.") || cleanIp.startsWith("192.168.") ||
+        cleanIp.startsWith("10.") || cleanIp.startsWith("172.16.") ||
+        cleanIp.startsWith("172.17.") || cleanIp.startsWith("172.18.") ||
+        cleanIp.startsWith("172.19.") || cleanIp.startsWith("172.2") ||
+        cleanIp.startsWith("172.3")) {
+      return { city: "Local", country: "Dev", lat: null, lon: null };
     }
-    const cleanIp = ip.replace("::ffff:", "");
     const mod = require("https");
     return await new Promise((resolve) => {
-      mod.get(`https://ip-api.com/json/${cleanIp}?fields=city,country,status`, (res) => {
+      const url = `https://ip-api.com/json/${cleanIp}?fields=city,country,lat,lon,status,regionName`;
+      mod.get(url, (res) => {
         let d = "";
         res.on("data", c => d += c);
         res.on("end", () => {
           try {
             const j = JSON.parse(d);
-            resolve(j.status === "success" ? { city: j.city || "", country: j.country || "" } : { city: "", country: "" });
-          } catch { resolve({ city: "", country: "" }); }
+            if (j.status === "success") {
+              resolve({ city: j.city || "", country: j.country || "", region: j.regionName || "", lat: j.lat || null, lon: j.lon || null });
+            } else {
+              resolve({ city: "", country: "", lat: null, lon: null });
+            }
+          } catch { resolve({ city: "", country: "", lat: null, lon: null }); }
         });
-      }).on("error", () => resolve({ city: "", country: "" }));
+      }).on("error", () => resolve({ city: "", country: "", lat: null, lon: null }));
     });
-  } catch { return { city: "", country: "" }; }
+  } catch { return { city: "", country: "", lat: null, lon: null }; }
 }
 
 /* save login session — max 2 active sessions, oldest kicked on 3rd login */
 async function recordLogin(userId, req, token) {
   try {
     const ua = req.headers["user-agent"] || "";
-    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket?.remoteAddress || "";
+    // Render passes real IP via x-forwarded-for
+    const rawIp = req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || req.socket?.remoteAddress || "";
+    const ip = rawIp.split(",")[0].trim();
     const { device, model, browser, os } = parseDevice(ua);
-    const { city, country } = await getIpLocation(ip);
+    const { city, country, region, lat, lon } = await getIpLocation(ip);
 
     const sessionId = crypto.randomBytes(16).toString("hex");
-    const entry = { sessionId, token, device, model, browser, os, ip, city, country, loginAt: new Date() };
+    const entry = { sessionId, token, device, model, browser, os, ip, city, country, region: region||"", lat, lon, loginAt: new Date() };
 
     const user = await User.findById(userId);
     if (!user) return;
 
     let sessions = user.activeSessions || [];
-    // keep max 2 — remove oldest if already at limit
-    if (sessions.length >= 2) sessions = sessions.slice(-1); // keep newest, add new one
+    if (sessions.length >= 2) sessions = sessions.slice(-1);
     sessions.push(entry);
 
     user.activeSessions = sessions;
-    user.lastLogin = { at: new Date(), ip, city, country, device, model, browser, os };
+    user.lastLogin = { at: new Date(), ip, city, country, region: region||"", lat, lon, device, model, browser, os };
     await user.save();
   } catch (e) { console.warn("recordLogin error:", e.message); }
 }
@@ -838,6 +852,23 @@ function adminOnly(req, res, next) {
   next();
 }
 
+/* block unverified students from key actions */
+async function requireVerified(req, res, next) {
+  try {
+    const user = await User.findById(req.user.id).select("idVerified role");
+    if (!user) return res.status(401).json({ message: "User not found" });
+    if (user.role === "admin") return next(); // admins always pass
+    if (user.idVerified !== "verified") {
+      return res.status(403).json({
+        message: "ID verification required",
+        code: "UNVERIFIED",
+        idVerified: user.idVerified || "none"
+      });
+    }
+    next();
+  } catch { res.status(500).json({ message: "Server error" }); }
+}
+
 /* ── ADMIN LOGIN (no token needed) ── */
 app.post("/admin/login", async (req, res) => {
   try {
@@ -1014,7 +1045,7 @@ app.get("/admin/users-with-id", verifyToken, adminOnly, async (req, res) => {
    EXCHANGE ROUTES
 ══════════════════════════════════════════════════════ */
 
-app.post("/exchange/create", verifyToken, async (req, res) => {
+app.post("/exchange/create", verifyToken, requireVerified, async (req, res) => {
   try {
     const { title, type, description, category, coins } = req.body;
     if (!title || !description) return res.status(400).json({ message: "Title and description required" });
@@ -1061,7 +1092,13 @@ app.get("/exchange/feed", async (req, res) => {
       } catch {}
     }
 
-    const all = await Request.find().sort({ createdAt: -1 });
+    // Get admin usernames to exclude their requests
+    const adminUsers = await User.find({ role: "admin" }).select("username");
+    const adminUsernames = adminUsers.map(u => u.username);
+
+    const all = await Request.find({
+      ownerUsername: { $nin: adminUsernames }
+    }).sort({ createdAt: -1 });
 
     if (!myUniversity) return res.json({ myUni: [], nearby: [], others: all, myUniversity: "" });
 
@@ -1115,7 +1152,7 @@ app.get("/exchange/:id", async (req, res) => {
 });
 
 /* accept — deducts coins from acceptor */
-app.put("/exchange/accept/:id", verifyToken, async (req, res) => {
+app.put("/exchange/accept/:id", verifyToken, requireVerified, async (req, res) => {
   try {
     const r = await Request.findById(req.params.id);
     if (!r)                                    return res.status(404).json({ message: "Not found" });
@@ -1472,7 +1509,7 @@ app.get("/wallet/packages", verifyToken, async (req, res) => {
 });
 
 /* create deposit request — 5 min expiry */
-app.post("/wallet/deposit", verifyToken, async (req, res) => {
+app.post("/wallet/deposit", verifyToken, requireVerified, async (req, res) => {
   try {
     const { packageId } = req.body;
     const pkg = COIN_PACKAGES.find(p => p.id === packageId);
@@ -1709,7 +1746,7 @@ app.post("/wallet/task/:taskId", verifyToken, async (req, res) => {
 });
 
 /* transfer coins to another user */
-app.post("/wallet/transfer", verifyToken, async (req, res) => {
+app.post("/wallet/transfer", verifyToken, requireVerified, async (req, res) => {
   try {
     const { toUsername, amount, note } = req.body;
     const coins = parseInt(amount);
@@ -1742,12 +1779,12 @@ app.get("/social/search", verifyToken, async (req, res) => {
     const q = req.query.q?.trim();
     if (!q) return res.json([]);
     const users = await User.find({
-      username: { $not: /^__reg_/ },
+      role: { $ne: "admin" }, // exclude admins
       $or: [
         { username: { $regex: q, $options: "i" } },
         { name:     { $regex: q, $options: "i" } },
       ],
-      username: { $ne: req.user.username },
+      username: { $ne: req.user.username, $not: /^__reg_/ },
     }).select("username name avatar university course year idVerified").limit(20);
     res.json(users);
   } catch (err) { res.status(500).json({ message: "Server error" }); }
@@ -1761,6 +1798,7 @@ app.get("/social/nearby", verifyToken, async (req, res) => {
     const users = await User.find({
       university: me.university,
       username: { $ne: req.user.username, $not: /^__reg_/ },
+      role: { $ne: "admin" }, // exclude admins
     }).select("username name avatar university course year idVerified").limit(30);
     res.json(users);
   } catch (err) { res.status(500).json({ message: "Server error" }); }
