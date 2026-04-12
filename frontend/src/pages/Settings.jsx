@@ -205,7 +205,12 @@ export default function Settings() {
               <div style={{ marginBottom:20, padding:"14px", background:"rgba(139,92,246,0.08)", border:"1px solid rgba(139,92,246,0.2)", borderRadius:12 }}>
                 <div style={{ fontSize:14, fontWeight:700, marginBottom:6, color:"#a78bfa" }}>🔐 Hidden Chats Password</div>
                 <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginBottom:10, lineHeight:1.5 }}>
-                  Set a password to hide sensitive chats. Hidden chats can only be accessed by entering this password in the Messages search bar.
+                  Set a password to hide sensitive chats. Hidden chats will be removed from your chat list and can only be accessed by entering this password in the Messages search bar.
+                  <br /><br />
+                  <strong style={{ color:"#a78bfa" }}>How to use:</strong>
+                  <br />• Set a password here (minimum 4 characters)
+                  <br />• In Messages, click "Hide" on any chat to move it to hidden
+                  <br />• Enter your password in the search bar to view hidden chats
                 </div>
                 <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
                   <input

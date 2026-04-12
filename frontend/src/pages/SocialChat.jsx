@@ -292,11 +292,32 @@ export default function SocialChat() {
     }
   };
 
+  const hideChat = async (username) => {
+    if (!confirm(`Hide chat with @${username}?\n\nThis chat will be moved to hidden chats and can only be accessed with your hide password.`)) {
+      return;
+    }
+    try {
+      await axios.put(`${API}/dm/${username}/hide`, {}, { headers: hdrs() });
+      loadConvs(); // Refresh to remove from list
+      if (active === username) {
+        setActive(null); // Close chat if it's currently open
+      }
+    } catch (e) {
+      alert(e.response?.data?.message || "Failed to hide chat");
+    }
+  };
+
   const unhideChat = async (username) => {
     try {
       await axios.put(`${API}/dm/${username}/unhide`, {}, { headers: hdrs() });
       setHiddenChats(prev => prev.filter(c => c.other !== username));
-      loadConvs();
+      loadConvs(); // Refresh normal chats to show the unhidden chat
+      // If no more hidden chats, close the hidden section
+      if (hiddenChats.length === 1) {
+        setShowHidden(false);
+        setSeg("chats");
+        setHiddenPass("");
+      }
     } catch {}
   };
 
@@ -436,7 +457,10 @@ export default function SocialChat() {
               <button
                 style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.2)", borderRadius:6, color:"#f87171", fontSize:11, padding:"3px 7px", cursor:"pointer", opacity:0, transition:"opacity 0.15s", fontFamily:"Outfit,sans-serif" }}
                 className="sc-hide-btn"
-                onClick={e => { e.stopPropagation(); if(confirm(`Hide chat with @${c.other}?`)) { axios.put(`${API}/dm/${c.other}/hide`, {}, { headers:hdrs() }).then(() => loadConvs()).catch(()=>{}); } }}>
+                onClick={e => { 
+                  e.stopPropagation(); 
+                  hideChat(c.other);
+                }}>
                 Hide
               </button>
             </div>
