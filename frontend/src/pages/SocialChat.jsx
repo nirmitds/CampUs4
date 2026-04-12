@@ -69,7 +69,7 @@ if (!document.getElementById(SC)) {
     .sc-date-sep { text-align:center; font-size:11px; color:rgba(255,255,255,0.2); margin:8px 0 4px; }
     .sc-msg-row { display:flex; gap:8px; align-items:flex-end; max-width:100%; }
     .sc-msg-row.mine { flex-direction:row-reverse; }
-    .sc-bubble { max-width:66%; padding:9px 13px; border-radius:18px; font-size:13.5px; line-height:1.5; word-break:break-word; overflow-wrap:break-word; }
+    .sc-bubble { max-width:66%; padding:9px 13px; border-radius:18px; font-size:13.5px; line-height:1.5; word-break:break-word; overflow-wrap:break-word; display:block; white-space:pre-wrap; }
     .sc-bubble.theirs { background:rgba(255,255,255,0.09); border:1px solid rgba(255,255,255,0.07); border-bottom-left-radius:4px; }
     .sc-bubble.mine { background:linear-gradient(135deg,#3b82f6,#6366f1); border-bottom-right-radius:4px; }
     .sc-msg-img { max-width:220px; max-height:220px; border-radius:14px; cursor:pointer; display:block; object-fit:cover; }

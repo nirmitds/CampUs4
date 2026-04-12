@@ -58,7 +58,7 @@ if (!document.getElementById(CHAT_STYLE)) {
     .msg-col { display:flex; flex-direction:column; max-width:68%; }
     .msg-row.mine .msg-col { align-items:flex-end; }
     .msg-sender { font-size:10px; color:rgba(255,255,255,0.3); margin-bottom:2px; }
-    .msg-bubble { padding:9px 13px; border-radius:16px; font-size:13.5px; line-height:1.55; word-break:break-word; }
+    .msg-bubble { padding:9px 13px; border-radius:16px; font-size:13.5px; line-height:1.55; word-break:break-word; display:block; white-space:pre-wrap; }
     .msg-bubble.theirs { background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.07); border-bottom-left-radius:4px; }
     .msg-bubble.mine   { background:linear-gradient(135deg,rgba(59,130,246,0.35),rgba(139,92,246,0.3)); border:1px solid rgba(59,130,246,0.3); border-bottom-right-radius:4px; }
     .msg-img { max-width:220px; max-height:220px; border-radius:12px; cursor:pointer; display:block; object-fit:cover; }
