@@ -48,6 +48,8 @@ export default function Settings() {
   const [msg,           setMsg]           = useState("");
   const [msgType,       setMsgType]       = useState("ok");
   const [activeSection, setActiveSection] = useState("account");
+  const [hidePassword,  setHidePassword]  = useState("");
+  const [hideBusy,      setHideBusy]      = useState(false);
 
   useEffect(() => {
     axios.get(`${API}/auth/me`, { headers: hdrs() })
@@ -80,6 +82,22 @@ export default function Settings() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     navigate("/");
+  };
+
+  const handleSetHidePassword = async () => {
+    if (!hidePassword || hidePassword.length < 4) {
+      return showMsg("Password must be at least 4 characters", "err");
+    }
+    setHideBusy(true);
+    try {
+      await axios.put(`${API}/auth/hide-password`, { hidePassword }, { headers: hdrs() });
+      showMsg("Hide password set successfully!");
+      setHidePassword("");
+    } catch (e) {
+      showMsg(e.response?.data?.message || "Failed to set password", "err");
+    } finally {
+      setHideBusy(false);
+    }
   };
 
   const SECTIONS = [
@@ -182,6 +200,32 @@ export default function Settings() {
           {activeSection === "privacy" && (
             <div className="glass-card">
               <div className="section-title">🔒 Privacy</div>
+              
+              {/* Hide Password Setting */}
+              <div style={{ marginBottom:20, padding:"14px", background:"rgba(139,92,246,0.08)", border:"1px solid rgba(139,92,246,0.2)", borderRadius:12 }}>
+                <div style={{ fontSize:14, fontWeight:700, marginBottom:6, color:"#a78bfa" }}>🔐 Hidden Chats Password</div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginBottom:10, lineHeight:1.5 }}>
+                  Set a password to hide sensitive chats. Hidden chats can only be accessed by entering this password in the Messages search bar.
+                </div>
+                <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+                  <input
+                    type="password"
+                    placeholder="Enter hide password (min 4 chars)"
+                    value={hidePassword}
+                    onChange={e => setHidePassword(e.target.value)}
+                    style={{ flex:1, minWidth:200, padding:"9px 12px", background:"rgba(255,255,255,0.07)", border:"1px solid rgba(139,92,246,0.3)", borderRadius:9, color:"#fff", fontFamily:"Outfit,sans-serif", fontSize:13, outline:"none" }}
+                    onKeyDown={e => e.key === "Enter" && handleSetHidePassword()}
+                  />
+                  <button 
+                    className="btn btn-primary" 
+                    style={{ fontSize:13, padding:"9px 18px" }}
+                    onClick={handleSetHidePassword}
+                    disabled={hideBusy}>
+                    {hideBusy ? "Setting..." : "Set Password"}
+                  </button>
+                </div>
+              </div>
+
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                 {[
                   ["Profile Visibility", "Visible to all CampUs students"],

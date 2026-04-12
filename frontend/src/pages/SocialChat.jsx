@@ -168,6 +168,10 @@ export default function SocialChat() {
   const [showNew,   setShowNew]   = useState(false);
   const [newSearch, setNewSearch] = useState("");
   const [newRes,    setNewRes]    = useState([]);
+  const [showHidden, setShowHidden] = useState(false);
+  const [hiddenPass, setHiddenPass] = useState("");
+  const [hiddenChats, setHiddenChats] = useState([]);
+  const [hiddenError, setHiddenError] = useState("");
 
   const socketRef = useRef();
   const bottomRef = useRef();
@@ -272,6 +276,30 @@ export default function SocialChat() {
     try { await axios.post(`${API}/dm/${active}/decline`, {}, { headers: hdrs() }); setActive(null); setMsgs([]); loadConvs(); } catch {}
   };
 
+  const verifyHiddenPassword = async () => {
+    if (!hiddenPass.trim()) {
+      setHiddenError("Enter password");
+      return;
+    }
+    try {
+      const { data } = await axios.post(`${API}/dm/hidden/verify`, { password: hiddenPass }, { headers: hdrs() });
+      setHiddenChats(data.hidden);
+      setShowHidden(true);
+      setHiddenError("");
+      setSeg("hidden");
+    } catch (e) {
+      setHiddenError(e.response?.data?.message || "Failed to verify");
+    }
+  };
+
+  const unhideChat = async (username) => {
+    try {
+      await axios.put(`${API}/dm/${username}/unhide`, {}, { headers: hdrs() });
+      setHiddenChats(prev => prev.filter(c => c.other !== username));
+      loadConvs();
+    } catch {}
+  };
+
   /* split convs */
   const normalConvs  = convs.filter(c => !c.isRequest);
   const requestConvs = convs.filter(c => c.isRequest && convs.find(x=>x.other===c.other)?.other !== me);
@@ -331,6 +359,30 @@ export default function SocialChat() {
               {searchQ && <span style={{ cursor:"pointer", color:"rgba(255,255,255,0.3)", fontSize:16 }} onClick={() => setSearchQ("")}>×</span>}
             </div>
           )}
+          {(seg === "chats" || seg === "requests") && (
+            <div className="sc-search-bar">
+              <span style={{ color:"rgba(255,255,255,0.3)", fontSize:14 }}>🔍</span>
+              <input 
+                placeholder="Search or enter hide password…" 
+                value={hiddenPass} 
+                onChange={e => setHiddenPass(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && verifyHiddenPassword()}
+                type="password"
+              />
+              {hiddenPass && (
+                <button 
+                  style={{ background:"rgba(139,92,246,0.2)", border:"1px solid rgba(139,92,246,0.3)", color:"#a78bfa", borderRadius:6, padding:"3px 10px", fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"Outfit,sans-serif" }}
+                  onClick={verifyHiddenPassword}>
+                  🔓 Unlock
+                </button>
+              )}
+            </div>
+          )}
+          {hiddenError && (
+            <div style={{ padding:"6px 12px", background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.2)", borderRadius:8, margin:"8px 20px 0", fontSize:11, color:"#f87171" }}>
+              {hiddenError}
+            </div>
+          )}
         </div>
 
         {/* verification banner in panel */}
@@ -347,15 +399,20 @@ export default function SocialChat() {
 
         {/* segments */}
         <div className="sc-seg">
-          <button className={`sc-seg-btn ${seg==="chats"?"on":""}`} onClick={() => setSeg("chats")}>
+          <button className={`sc-seg-btn ${seg==="chats"?"on":""}`} onClick={() => { setSeg("chats"); setShowHidden(false); setHiddenPass(""); }}>
             💬 Chats {normalConvs.length > 0 && `(${normalConvs.length})`}
           </button>
-          <button className={`sc-seg-btn ${seg==="requests"?"on":""}`} onClick={() => setSeg("requests")}>
+          <button className={`sc-seg-btn ${seg==="requests"?"on":""}`} onClick={() => { setSeg("requests"); setShowHidden(false); setHiddenPass(""); }}>
             📨 Requests {myRequests.length > 0 && <span style={{ marginLeft:4, background:"#f59e0b", color:"#000", borderRadius:8, padding:"1px 5px", fontSize:10, fontWeight:800 }}>{myRequests.length}</span>}
           </button>
-          <button className={`sc-seg-btn ${seg==="people"?"on":""}`} onClick={() => setSeg("people")}>
+          <button className={`sc-seg-btn ${seg==="people"?"on":""}`} onClick={() => { setSeg("people"); setShowHidden(false); setHiddenPass(""); }}>
             🌐 People
           </button>
+          {showHidden && (
+            <button className={`sc-seg-btn ${seg==="hidden"?"on":""}`} onClick={() => setSeg("hidden")}>
+              🔒 Hidden ({hiddenChats.length})
+            </button>
+          )}
         </div>
 
         <div className="sc-list">
@@ -433,6 +490,34 @@ export default function SocialChat() {
               <button className="btn btn-ghost" style={{ fontSize:12 }} onClick={() => navigate("/student/profile")}>
                 Update Profile →
               </button>
+            </div>
+          )}
+
+          {/* HIDDEN CHATS */}
+          {seg === "hidden" && hiddenChats.map(c => (
+            <div key={c.convId} className={`sc-row ${active===c.other?"active":""}`}>
+              <div style={{ flex:1, display:"flex", gap:12, alignItems:"center" }} onClick={() => setActive(c.other)}>
+                <Av user={c.user} size={46} />
+                <div className="sc-row-body">
+                  <div className="sc-row-name">🔒 @{c.other}</div>
+                  <div className={`sc-row-sub ${c.unread>0?"bold":""}`}>{c.lastMessage?.text || c.lastMessage || "Say hi!"}</div>
+                </div>
+                <div className="sc-row-meta">
+                  <div className="sc-time">{ago(c.lastAt)}</div>
+                  {c.unread > 0 && <div className="sc-unread">{c.unread}</div>}
+                </div>
+              </div>
+              <button
+                style={{ padding:"4px 10px", borderRadius:6, background:"rgba(34,197,94,0.15)", border:"1px solid rgba(34,197,94,0.3)", color:"#4ade80", fontSize:11, fontWeight:600, cursor:"pointer", fontFamily:"Outfit,sans-serif" }}
+                onClick={e => { e.stopPropagation(); unhideChat(c.other); }}>
+                Unhide
+              </button>
+            </div>
+          ))}
+          {seg === "hidden" && hiddenChats.length === 0 && (
+            <div style={{ padding:32, textAlign:"center", color:"rgba(255,255,255,0.3)", fontSize:13 }}>
+              <div style={{ fontSize:36, marginBottom:8 }}>🔒</div>
+              No hidden chats
             </div>
           )}
         </div>

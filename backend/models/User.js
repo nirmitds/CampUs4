@@ -37,6 +37,9 @@ const userSchema = new mongoose.Schema({
   /* Email verification */
   emailVerified: { type: Boolean, default: false },
 
+  /* Hidden chats password */
+  hidePassword: { type: String, default: null },
+
   /* Active sessions — max 2 devices */
   activeSessions: [{
     sessionId: { type: String },

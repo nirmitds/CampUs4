@@ -2135,6 +2135,74 @@ app.put("/dm/:username/hide", verifyToken, async (req, res) => {
   } catch (err) { res.status(500).json({ message: "Server error" }); }
 });
 
+/* set/update hide password */
+app.put("/auth/hide-password", verifyToken, async (req, res) => {
+  try {
+    const { hidePassword } = req.body;
+    if (!hidePassword || hidePassword.length < 4) {
+      return res.status(400).json({ message: "Password must be at least 4 characters" });
+    }
+    await User.findByIdAndUpdate(req.user.id, { hidePassword });
+    res.json({ message: "Hide password set successfully" });
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* verify hide password and get hidden chats */
+app.post("/dm/hidden/verify", verifyToken, async (req, res) => {
+  try {
+    const { password } = req.body;
+    const user = await User.findById(req.user.id);
+    
+    if (!user.hidePassword) {
+      return res.status(400).json({ message: "No hide password set. Set one in Settings first." });
+    }
+    
+    if (user.hidePassword !== password) {
+      return res.status(401).json({ message: "Incorrect password" });
+    }
+    
+    // Return hidden conversations
+    const me = req.user.username;
+    const convs = await DirectConversation.find({
+      participants: me,
+      hiddenFor: me
+    }).sort({ lastAt: -1 });
+
+    const result = [];
+    for (const c of convs) {
+      const other = c.participants.find(p => p !== me);
+      const otherUser = await User.findOne({ username: other }).select("name username avatar university");
+      const unreadCount = c.unread?.get(me) || 0;
+      result.push({
+        convId: c._id,
+        other,
+        user: otherUser,
+        lastMessage: c.lastMessage,
+        lastAt: c.lastAt,
+        unread: unreadCount,
+        isRequest: c.isRequest
+      });
+    }
+    
+    res.json({ hidden: result });
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* unhide a chat */
+app.put("/dm/:username/unhide", verifyToken, async (req, res) => {
+  try {
+    const me = req.user.username;
+    const conv = await DirectConversation.findOne({ participants: { $all: [[me, req.params.username].sort()] } })
+      || await DirectConversation.findOne({ participants: { $all: [me, req.params.username] } });
+    if (!conv) return res.status(404).json({ message: "Conversation not found" });
+    if (conv.hiddenFor) {
+      conv.hiddenFor = conv.hiddenFor.filter(u => u !== me);
+      await conv.save();
+    }
+    res.json({ message: "Chat unhidden" });
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
 /* delete exchange chat message */
 app.delete("/chat/message/:msgId", verifyToken, async (req, res) => {
   try {
