@@ -210,6 +210,7 @@ const transporter = nodemailer.createTransport({
 const emailReady = !!(
   process.env.MAIL_USER &&
   process.env.MAIL_PASS &&
+  process.env.MAIL_PASS !== "your_brevo_smtp_key_here" &&
   process.env.MAIL_PASS !== "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"
 );
 
@@ -361,11 +362,16 @@ function signToken(user) {
 
 async function sendOtpEmail(toEmail, otp, type = "login") {
   const isReset = type === "reset";
-  if (!emailReady) {
-    console.log("\n" + "═".repeat(44));
-    console.log(`📧  EMAIL ${isReset ? "RESET" : "OTP"}  →  ${toEmail}`);
-    console.log(`🔑  CODE  →  ${otp}`);
-    console.log("═".repeat(44) + "\n");
+
+  // Always log to console as fallback
+  console.log("\n" + "═".repeat(44));
+  console.log(`📧  EMAIL ${isReset ? "RESET" : "OTP"}  →  ${toEmail}`);
+  console.log(`🔑  CODE  →  ${otp}`);
+  console.log("═".repeat(44) + "\n");
+
+  // If no email config, skip sending
+  if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
+    console.warn("⚠️  MAIL_USER or MAIL_PASS not set — skipping email");
     return false;
   }
 
@@ -379,7 +385,6 @@ async function sendOtpEmail(toEmail, otp, type = "login") {
     : `If you didn't request this, ignore this email. Never share this code.`;
 
   try {
-    // Race between sendMail and a 15s timeout
     await Promise.race([
       transporter.sendMail({
         from: process.env.MAIL_FROM || `"CampUs 🎓" <${process.env.MAIL_USER}>`,
@@ -411,12 +416,6 @@ async function sendOtpEmail(toEmail, otp, type = "login") {
     return true;
   } catch (err) {
     console.error(`❌ sendOtpEmail failed: ${err.message}`);
-    // Log OTP to console as fallback
-    console.log("\n" + "═".repeat(44));
-    console.log(`📧  EMAIL FAILED — FALLBACK OTP`);
-    console.log(`📬  TO   →  ${toEmail}`);
-    console.log(`🔑  CODE →  ${otp}`);
-    console.log("═".repeat(44) + "\n");
     return false;
   }
 }

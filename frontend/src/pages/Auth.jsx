@@ -203,7 +203,7 @@ function Auth() {
 
         {devMode && otpSent && (
           <div style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.3)", borderRadius:10, padding:"10px 14px", fontSize:13, color:"#fbbf24", marginBottom:14, lineHeight:1.5 }}>
-            💡 <strong>Dev mode:</strong> Check the <strong>backend terminal</strong> for the OTP.
+            💡 Email delivery failed. Check your <strong>spam folder</strong> or contact support.
           </div>
         )}
 
