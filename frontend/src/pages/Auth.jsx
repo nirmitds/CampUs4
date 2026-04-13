@@ -318,17 +318,23 @@ function Auth() {
               }}>
               {loading ? "Verifying…" : "Verify & Sign In →"}
             </button>
-            <div style={{ textAlign:"center", marginTop:12, fontSize:12, color:"rgba(255,255,255,0.4)" }}>
+            <div style={{ textAlign:"center", marginTop:12, fontSize:12, color:"rgba(255,255,255,0.4)", display:"flex", justifyContent:"center", gap:8, flexWrap:"wrap" }}>
               <span style={{ color:"#60a5fa", cursor:"pointer" }}
                 onClick={async () => {
-                  try { await axios.post(`${API}/auth/resend-verify-email`, { email: otpId }); setSuccess("Code resent!"); }
+                  try { await axios.post(`${API}/auth/resend-verify-email`, { email: otpId }); setSuccess("Code resent!"); setOtp(Array(6).fill("")); }
                   catch (e) { setError(e.response?.data?.message || "Failed"); }
                 }}>
                 Resend code
               </span>
-              {" · "}
-              <span style={{ color:"rgba(255,255,255,0.4)", cursor:"pointer" }} onClick={() => { setMode("password"); setError(""); setSuccess(""); }}>
-                Back to login
+              <span style={{ color:"rgba(255,255,255,0.2)" }}>·</span>
+              <span style={{ color:"#a78bfa", cursor:"pointer" }}
+                onClick={() => { setOtp(Array(6).fill("")); setError(""); setSuccess(""); }}>
+                Re-enter OTP
+              </span>
+              <span style={{ color:"rgba(255,255,255,0.2)" }}>·</span>
+              <span style={{ color:"rgba(255,255,255,0.4)", cursor:"pointer" }}
+                onClick={() => { setMode("password"); setError(""); setSuccess(""); setOtpId(""); setOtp(Array(6).fill("")); }}>
+                Change email
               </span>
             </div>
           </>
@@ -363,6 +369,17 @@ function Auth() {
                 <button className="auth-btn" onClick={handleVerifyOtp} disabled={loading}>
                   {loading ? "Verifying…" : "Verify & Sign In →"}
                 </button>
+                <div style={{ textAlign:"center", marginTop:10, fontSize:12, display:"flex", justifyContent:"center", gap:8, flexWrap:"wrap" }}>
+                  <span style={{ color:"#a78bfa", cursor:"pointer" }}
+                    onClick={() => { setOtp(Array(6).fill("")); setError(""); setSuccess(""); }}>
+                    Re-enter OTP
+                  </span>
+                  <span style={{ color:"rgba(255,255,255,0.2)" }}>·</span>
+                  <span style={{ color:"#60a5fa", cursor:"pointer" }}
+                    onClick={() => { setOtpSent(false); setOtp(Array(6).fill("")); setCooldown(0); setError(""); setSuccess(""); }}>
+                    Change email
+                  </span>
+                </div>
               </>
             )}
 
