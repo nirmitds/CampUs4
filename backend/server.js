@@ -2164,13 +2164,110 @@ app.put("/dm/:username/hide", verifyToken, async (req, res) => {
 /* set/update hide password */
 app.put("/auth/hide-password", verifyToken, async (req, res) => {
   try {
-    const { hidePassword } = req.body;
+    const { hidePassword, oldPassword } = req.body;
+    
     if (!hidePassword || hidePassword.length < 4) {
       return res.status(400).json({ message: "Password must be at least 4 characters" });
     }
+    
+    const user = await User.findById(req.user.id);
+    
+    // If user already has a hide password, require old password
+    if (user.hidePassword && !oldPassword) {
+      return res.status(400).json({ message: "Old password required to update" });
+    }
+    
+    // Verify old password if provided
+    if (user.hidePassword && oldPassword !== user.hidePassword) {
+      return res.status(401).json({ message: "Incorrect old password" });
+    }
+    
     await User.findByIdAndUpdate(req.user.id, { hidePassword });
     res.json({ message: "Hide password set successfully" });
   } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* send OTP to reset hide password */
+app.post("/auth/hide-password/send-otp", verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    
+    if (!user.hidePassword) {
+      return res.status(400).json({ message: "No hide password set" });
+    }
+    
+    const otp = generateOTP();
+    const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    
+    user.otpCode = otp;
+    user.otpExpiry = expiry;
+    await user.save();
+    
+    // Send OTP email
+    const mailOptions = {
+      from: `"CampUs" <${process.env.MAIL_USER}>`,
+      to: user.email,
+      subject: "Reset Hide Password - CampUs",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #3b82f6;">Reset Hide Password</h2>
+          <p>Hi ${user.name},</p>
+          <p>You requested to reset your hidden chats password. Use this OTP to verify:</p>
+          <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+            <h1 style="color: #3b82f6; margin: 0; font-size: 36px; letter-spacing: 8px;">${otp}</h1>
+          </div>
+          <p style="color: #6b7280; font-size: 14px;">This OTP will expire in 10 minutes.</p>
+          <p style="color: #6b7280; font-size: 14px;">If you didn't request this, please ignore this email.</p>
+        </div>
+      `
+    };
+    
+    await transporter.sendMail(mailOptions);
+    res.json({ message: "OTP sent to your email" });
+  } catch (err) { 
+    console.error("Send OTP error:", err);
+    res.status(500).json({ message: "Failed to send OTP" }); 
+  }
+});
+
+/* verify OTP and reset hide password */
+app.post("/auth/hide-password/reset", verifyToken, async (req, res) => {
+  try {
+    const { otp, newPassword } = req.body;
+    
+    if (!otp || !newPassword) {
+      return res.status(400).json({ message: "OTP and new password required" });
+    }
+    
+    if (newPassword.length < 4) {
+      return res.status(400).json({ message: "Password must be at least 4 characters" });
+    }
+    
+    const user = await User.findById(req.user.id);
+    
+    if (!user.otpCode || !user.otpExpiry) {
+      return res.status(400).json({ message: "No OTP request found. Request OTP first." });
+    }
+    
+    if (new Date() > user.otpExpiry) {
+      return res.status(400).json({ message: "OTP expired. Request a new one." });
+    }
+    
+    if (user.otpCode !== otp) {
+      return res.status(401).json({ message: "Invalid OTP" });
+    }
+    
+    // Reset hide password
+    user.hidePassword = newPassword;
+    user.otpCode = null;
+    user.otpExpiry = null;
+    await user.save();
+    
+    res.json({ message: "Hide password reset successfully" });
+  } catch (err) { 
+    console.error("Reset password error:", err);
+    res.status(500).json({ message: "Server error" }); 
+  }
 });
 
 /* verify hide password and get hidden chats */

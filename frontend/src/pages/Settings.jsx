@@ -50,6 +50,13 @@ export default function Settings() {
   const [activeSection, setActiveSection] = useState("account");
   const [hidePassword,  setHidePassword]  = useState("");
   const [hideBusy,      setHideBusy]      = useState(false);
+  const [oldHidePass,   setOldHidePass]   = useState("");
+  const [showUpdateMode, setShowUpdateMode] = useState(false);
+  const [showResetMode, setShowResetMode]  = useState(false);
+  const [resetOtp,      setResetOtp]      = useState("");
+  const [newHidePass,   setNewHidePass]   = useState("");
+  const [otpSent,       setOtpSent]       = useState(false);
+  const [otpBusy,       setOtpBusy]       = useState(false);
 
   useEffect(() => {
     axios.get(`${API}/auth/me`, { headers: hdrs() })
@@ -93,8 +100,71 @@ export default function Settings() {
       await axios.put(`${API}/auth/hide-password`, { hidePassword }, { headers: hdrs() });
       showMsg("Hide password set successfully!");
       setHidePassword("");
+      setUser(prev => ({ ...prev, hidePassword: "set" })); // Mark as set
     } catch (e) {
       showMsg(e.response?.data?.message || "Failed to set password", "err");
+    } finally {
+      setHideBusy(false);
+    }
+  };
+
+  const handleUpdateHidePassword = async () => {
+    if (!oldHidePass || !hidePassword) {
+      return showMsg("Both old and new passwords required", "err");
+    }
+    if (hidePassword.length < 4) {
+      return showMsg("New password must be at least 4 characters", "err");
+    }
+    setHideBusy(true);
+    try {
+      await axios.put(`${API}/auth/hide-password`, { 
+        hidePassword, 
+        oldPassword: oldHidePass 
+      }, { headers: hdrs() });
+      showMsg("Hide password updated successfully!");
+      setHidePassword("");
+      setOldHidePass("");
+      setShowUpdateMode(false);
+    } catch (e) {
+      showMsg(e.response?.data?.message || "Failed to update password", "err");
+    } finally {
+      setHideBusy(false);
+    }
+  };
+
+  const handleSendResetOtp = async () => {
+    setOtpBusy(true);
+    try {
+      await axios.post(`${API}/auth/hide-password/send-otp`, {}, { headers: hdrs() });
+      showMsg("OTP sent to your email!");
+      setOtpSent(true);
+    } catch (e) {
+      showMsg(e.response?.data?.message || "Failed to send OTP", "err");
+    } finally {
+      setOtpBusy(false);
+    }
+  };
+
+  const handleResetWithOtp = async () => {
+    if (!resetOtp || !newHidePass) {
+      return showMsg("OTP and new password required", "err");
+    }
+    if (newHidePass.length < 4) {
+      return showMsg("Password must be at least 4 characters", "err");
+    }
+    setHideBusy(true);
+    try {
+      await axios.post(`${API}/auth/hide-password/reset`, { 
+        otp: resetOtp, 
+        newPassword: newHidePass 
+      }, { headers: hdrs() });
+      showMsg("Hide password reset successfully!");
+      setResetOtp("");
+      setNewHidePass("");
+      setShowResetMode(false);
+      setOtpSent(false);
+    } catch (e) {
+      showMsg(e.response?.data?.message || "Failed to reset password", "err");
     } finally {
       setHideBusy(false);
     }
@@ -212,23 +282,160 @@ export default function Settings() {
                   <br />• In Messages, click "Hide" on any chat to move it to hidden
                   <br />• Enter your password in the search bar to view hidden chats
                 </div>
-                <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
-                  <input
-                    type="password"
-                    placeholder="Enter hide password (min 4 chars)"
-                    value={hidePassword}
-                    onChange={e => setHidePassword(e.target.value)}
-                    style={{ flex:1, minWidth:200, padding:"9px 12px", background:"rgba(255,255,255,0.07)", border:"1px solid rgba(139,92,246,0.3)", borderRadius:9, color:"#fff", fontFamily:"Outfit,sans-serif", fontSize:13, outline:"none" }}
-                    onKeyDown={e => e.key === "Enter" && handleSetHidePassword()}
-                  />
-                  <button 
-                    className="btn btn-primary" 
-                    style={{ fontSize:13, padding:"9px 18px" }}
-                    onClick={handleSetHidePassword}
-                    disabled={hideBusy}>
-                    {hideBusy ? "Setting..." : "Set Password"}
-                  </button>
-                </div>
+
+                {/* Initial Set Password */}
+                {!user?.hidePassword && !showUpdateMode && !showResetMode && (
+                  <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+                    <input
+                      type="password"
+                      placeholder="Enter hide password (min 4 chars)"
+                      value={hidePassword}
+                      onChange={e => setHidePassword(e.target.value)}
+                      style={{ flex:1, minWidth:200, padding:"9px 12px", background:"rgba(255,255,255,0.07)", border:"1px solid rgba(139,92,246,0.3)", borderRadius:9, color:"#fff", fontFamily:"Outfit,sans-serif", fontSize:13, outline:"none" }}
+                      onKeyDown={e => e.key === "Enter" && handleSetHidePassword()}
+                    />
+                    <button 
+                      className="btn btn-primary" 
+                      style={{ fontSize:13, padding:"9px 18px" }}
+                      onClick={handleSetHidePassword}
+                      disabled={hideBusy}>
+                      {hideBusy ? "Setting..." : "Set Password"}
+                    </button>
+                  </div>
+                )}
+
+                {/* Password Already Set - Show Options */}
+                {user?.hidePassword && !showUpdateMode && !showResetMode && (
+                  <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                    <div style={{ flex:1, padding:"10px 14px", background:"rgba(34,197,94,0.1)", border:"1px solid rgba(34,197,94,0.3)", borderRadius:9, fontSize:13, color:"#4ade80" }}>
+                      ✅ Hide password is set
+                    </div>
+                    <button 
+                      className="btn btn-ghost" 
+                      style={{ fontSize:12, padding:"8px 14px" }}
+                      onClick={() => { setShowUpdateMode(true); setShowResetMode(false); }}>
+                      Update Password
+                    </button>
+                    <button 
+                      className="btn btn-ghost" 
+                      style={{ fontSize:12, padding:"8px 14px", color:"#f59e0b" }}
+                      onClick={() => { setShowResetMode(true); setShowUpdateMode(false); }}>
+                      Forgot Password?
+                    </button>
+                  </div>
+                )}
+
+                {/* Update Mode - Using Old Password */}
+                {showUpdateMode && (
+                  <div style={{ marginTop:12, padding:"12px", background:"rgba(59,130,246,0.08)", border:"1px solid rgba(59,130,246,0.2)", borderRadius:9 }}>
+                    <div style={{ fontSize:13, fontWeight:600, marginBottom:10, color:"#60a5fa" }}>Update Hide Password</div>
+                    <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                      <input
+                        type="password"
+                        placeholder="Enter old password"
+                        value={oldHidePass}
+                        onChange={e => setOldHidePass(e.target.value)}
+                        style={{ padding:"9px 12px", background:"rgba(255,255,255,0.07)", border:"1px solid rgba(59,130,246,0.3)", borderRadius:9, color:"#fff", fontFamily:"Outfit,sans-serif", fontSize:13, outline:"none" }}
+                      />
+                      <input
+                        type="password"
+                        placeholder="Enter new password (min 4 chars)"
+                        value={hidePassword}
+                        onChange={e => setHidePassword(e.target.value)}
+                        style={{ padding:"9px 12px", background:"rgba(255,255,255,0.07)", border:"1px solid rgba(59,130,246,0.3)", borderRadius:9, color:"#fff", fontFamily:"Outfit,sans-serif", fontSize:13, outline:"none" }}
+                        onKeyDown={e => e.key === "Enter" && handleUpdateHidePassword()}
+                      />
+                      <div style={{ display:"flex", gap:8 }}>
+                        <button 
+                          className="btn btn-primary" 
+                          style={{ fontSize:13, padding:"8px 16px", flex:1 }}
+                          onClick={handleUpdateHidePassword}
+                          disabled={hideBusy}>
+                          {hideBusy ? "Updating..." : "Update"}
+                        </button>
+                        <button 
+                          className="btn btn-ghost" 
+                          style={{ fontSize:13, padding:"8px 16px" }}
+                          onClick={() => { setShowUpdateMode(false); setOldHidePass(""); setHidePassword(""); }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Reset Mode - Using OTP */}
+                {showResetMode && (
+                  <div style={{ marginTop:12, padding:"12px", background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.2)", borderRadius:9 }}>
+                    <div style={{ fontSize:13, fontWeight:600, marginBottom:10, color:"#fbbf24" }}>Reset Hide Password via Email</div>
+                    
+                    {!otpSent ? (
+                      <div>
+                        <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginBottom:10 }}>
+                          We'll send a verification code to <strong>{user?.email}</strong>
+                        </div>
+                        <div style={{ display:"flex", gap:8 }}>
+                          <button 
+                            className="btn btn-primary" 
+                            style={{ fontSize:13, padding:"8px 16px", flex:1, background:"linear-gradient(135deg,#f59e0b,#d97706)" }}
+                            onClick={handleSendResetOtp}
+                            disabled={otpBusy}>
+                            {otpBusy ? "Sending..." : "Send OTP"}
+                          </button>
+                          <button 
+                            className="btn btn-ghost" 
+                            style={{ fontSize:13, padding:"8px 16px" }}
+                            onClick={() => { setShowResetMode(false); }}>
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                        <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginBottom:4 }}>
+                          Enter the 6-digit code sent to your email
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Enter OTP"
+                          value={resetOtp}
+                          onChange={e => setResetOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                          style={{ padding:"9px 12px", background:"rgba(255,255,255,0.07)", border:"1px solid rgba(245,158,11,0.3)", borderRadius:9, color:"#fff", fontFamily:"Outfit,sans-serif", fontSize:13, outline:"none", letterSpacing:"4px", textAlign:"center" }}
+                          maxLength={6}
+                        />
+                        <input
+                          type="password"
+                          placeholder="Enter new password (min 4 chars)"
+                          value={newHidePass}
+                          onChange={e => setNewHidePass(e.target.value)}
+                          style={{ padding:"9px 12px", background:"rgba(255,255,255,0.07)", border:"1px solid rgba(245,158,11,0.3)", borderRadius:9, color:"#fff", fontFamily:"Outfit,sans-serif", fontSize:13, outline:"none" }}
+                          onKeyDown={e => e.key === "Enter" && handleResetWithOtp()}
+                        />
+                        <div style={{ display:"flex", gap:8 }}>
+                          <button 
+                            className="btn btn-primary" 
+                            style={{ fontSize:13, padding:"8px 16px", flex:1, background:"linear-gradient(135deg,#f59e0b,#d97706)" }}
+                            onClick={handleResetWithOtp}
+                            disabled={hideBusy}>
+                            {hideBusy ? "Resetting..." : "Reset Password"}
+                          </button>
+                          <button 
+                            className="btn btn-ghost" 
+                            style={{ fontSize:13, padding:"8px 16px" }}
+                            onClick={handleSendResetOtp}
+                            disabled={otpBusy}>
+                            Resend OTP
+                          </button>
+                        </div>
+                        <button 
+                          style={{ fontSize:11, color:"rgba(255,255,255,0.4)", background:"none", border:"none", cursor:"pointer", textDecoration:"underline", fontFamily:"Outfit,sans-serif" }}
+                          onClick={() => { setShowResetMode(false); setOtpSent(false); setResetOtp(""); setNewHidePass(""); }}>
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
