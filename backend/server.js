@@ -186,21 +186,27 @@ mongoose.connect(process.env.MONGO_URI)
   });
 
 /* ══════════════════════════════════════════
-   EMAIL — Resend (resend.com)
-   1. Sign up at resend.com
-   2. Create an API key
-   3. Add to Render env: RESEND_API_KEY=re_xxxx
-   4. Set MAIL_FROM to your verified domain email
-      e.g. noreply@yourdomain.com
-      OR use Resend's shared domain for testing:
-      onboarding@resend.dev (only sends to your own email)
+   EMAIL — Gmail SMTP via Nodemailer
 ══════════════════════════════════════════ */
-const resend = new Resend(process.env.RESEND_API_KEY);
-const MAIL_FROM = process.env.MAIL_FROM || "CampUs <onboarding@resend.dev>";
-const emailReady = !!process.env.RESEND_API_KEY;
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS,
+  },
+});
 
-if (emailReady) console.log("📧  Resend email ready!");
-else            console.warn("⚠️  RESEND_API_KEY not set — emails will be logged to console only");
+const emailReady = !!(process.env.MAIL_USER && process.env.MAIL_PASS);
+const MAIL_FROM  = process.env.MAIL_FROM || `"CampUs 🎓" <${process.env.MAIL_USER}>`;
+
+if (emailReady) {
+  transporter.verify((err) => {
+    if (err) console.warn("⚠️  Gmail SMTP not ready:", err.message);
+    else     console.log(`📧  Gmail SMTP ready — ${process.env.MAIL_USER}`);
+  });
+} else {
+  console.warn("⚠️  MAIL_USER / MAIL_PASS not set — emails logged to console only");
+}
 
 /* ─── HELPERS ─── */
 function generateOTP() {
@@ -346,56 +352,40 @@ function signToken(user) {
 async function sendOtpEmail(toEmail, otp, type = "login") {
   const isReset = type === "reset";
 
-  // Always log to console as fallback
   console.log("\n" + "═".repeat(44));
-  console.log(`📧  EMAIL ${isReset ? "RESET" : "OTP"}  →  ${toEmail}`);
-  console.log(`🔑  CODE  →  ${otp}`);
+  console.log(`📧  OTP  →  ${toEmail}  |  CODE: ${otp}`);
   console.log("═".repeat(44) + "\n");
 
-  if (!emailReady) {
-    console.warn("⚠️  RESEND_API_KEY not set — skipping email send");
-    return false;
-  }
+  if (!emailReady) return false;
 
-  const subject = isReset ? `${otp} — Reset your CampUs password` : `${otp} is your CampUs login code`;
-  const heading = isReset ? "Reset your password" : "Your login code";
-  const subtext = isReset
-    ? `Use the code below to reset your password. It expires in <strong style="color:#fff;">15 minutes</strong>.`
-    : `Use the code below to sign in. It expires in <strong style="color:#fff;">10 minutes</strong>.`;
-  const footer = isReset
-    ? `If you didn't request a password reset, ignore this email.`
-    : `If you didn't request this, ignore this email. Never share this code.`;
+  const subject = isReset
+    ? `${otp} — Reset your CampUs password`
+    : `${otp} is your CampUs login code`;
+
+  const otpHtml = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#05050f;font-family:'Segoe UI',sans-serif;">
+    <div style="max-width:480px;margin:40px auto;padding:40px 36px;background:#0f0f23;border-radius:20px;border:1px solid rgba(59,130,246,0.25);">
+      <div style="margin-bottom:24px;">
+        <div style="font-size:18px;font-weight:800;color:#fff;">🎓 CampUs</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.35);">${isReset ? "Password Reset" : "One-Time Password"}</div>
+      </div>
+      <h2 style="color:#fff;font-size:22px;font-weight:800;margin:0 0 10px;">${isReset ? "Reset your password" : "Your login code"}</h2>
+      <p style="color:rgba(255,255,255,0.45);font-size:14px;line-height:1.7;margin:0 0 28px;">
+        ${isReset
+          ? "Use the code below to reset your password. It expires in <strong style='color:#fff;'>15 minutes</strong>."
+          : "Use the code below to sign in. It expires in <strong style='color:#fff;'>10 minutes</strong>."}
+      </p>
+      <div style="background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.3);border-radius:16px;padding:30px;text-align:center;margin-bottom:28px;">
+        <div style="font-size:50px;font-weight:900;letter-spacing:16px;color:#fff;font-family:'Courier New',monospace;">${otp}</div>
+      </div>
+      <p style="color:rgba(255,255,255,0.28);font-size:12px;text-align:center;">
+        ${isReset ? "If you didn't request a password reset, ignore this email." : "If you didn't request this, ignore this email. Never share this code."}
+      </p>
+    </div>
+  </body></html>`;
 
   try {
-    const { data, error } = await resend.emails.send({
-      from: MAIL_FROM,
-      to:   [toEmail],
-      subject,
-      html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#05050f;font-family:'Segoe UI',sans-serif;">
-        <div style="max-width:480px;margin:40px auto;padding:40px 36px;background:#0f0f23;border-radius:20px;border:1px solid rgba(59,130,246,0.25);">
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;">
-            <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:22px;">🎓</div>
-            <div>
-              <div style="font-size:18px;font-weight:800;color:#fff;">CampUs</div>
-              <div style="font-size:12px;color:rgba(255,255,255,0.35);">${isReset ? "Password Reset" : "One-Time Password"}</div>
-            </div>
-          </div>
-          <h2 style="color:#fff;font-size:22px;font-weight:800;margin:0 0 10px;">${heading}</h2>
-          <p style="color:rgba(255,255,255,0.45);font-size:14px;line-height:1.7;margin:0 0 28px;">${subtext}</p>
-          <div style="background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.3);border-radius:16px;padding:30px;text-align:center;margin-bottom:28px;">
-            <div style="font-size:50px;font-weight:900;letter-spacing:16px;color:#fff;font-family:'Courier New',monospace;">${otp}</div>
-          </div>
-          <p style="color:rgba(255,255,255,0.28);font-size:12px;text-align:center;line-height:1.6;">${footer}</p>
-        </div>
-      </body></html>`,
-    });
-
-    if (error) {
-      console.error("❌ Resend error:", error);
-      return false;
-    }
-
-    console.log(`✅ Email sent via Resend — ID: ${data.id}`);
+    await transporter.sendMail({ from: MAIL_FROM, to: toEmail, subject, html: otpHtml });
+    console.log(`✅ OTP email sent to ${toEmail}`);
     return true;
   } catch (err) {
     console.error(`❌ sendOtpEmail failed: ${err.message}`);
@@ -443,9 +433,9 @@ app.post("/auth/register", async (req, res) => {
 
     /* send email verification */
     if (emailReady) {
-      resend.emails.send({
+      transporter.sendMail({
         from: MAIL_FROM,
-        to:   [email],
+        to: email,
         subject: `${verifyOtp} — Verify your CampUs email`,
         html: `
           <div style="font-family:sans-serif;max-width:480px;margin:auto;background:#0a0a1a;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(59,130,246,0.2)">
@@ -470,9 +460,9 @@ app.post("/auth/register", async (req, res) => {
     /* notify admin */
     if (emailReady && process.env.ADMIN_EMAIL) {
       const now = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "full", timeStyle: "medium" });
-      resend.emails.send({
+      transporter.sendMail({
         from: MAIL_FROM,
-        to:   [process.env.ADMIN_EMAIL],
+        to: process.env.ADMIN_EMAIL,
         subject: `New Student Registered — ${name} (@${username})`,
         html: `<div style="font-family:sans-serif;max-width:480px;margin:auto;background:#0a0a1a;color:#fff;border-radius:16px;padding:28px;border:1px solid rgba(59,130,246,0.2)"><h2 style="margin:0 0 16px;color:#60a5fa">New Student Registration</h2><table style="width:100%;border-collapse:collapse;font-size:14px"><tr><td style="padding:8px 0;color:rgba(255,255,255,0.5);width:120px">Name</td><td style="padding:8px 0;font-weight:600">${name}</td></tr><tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">Email</td><td style="padding:8px 0">${email}</td></tr><tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">University</td><td style="padding:8px 0">${university || "—"}</td></tr><tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">Registered At</td><td style="padding:8px 0;color:#fbbf24">${now}</td></tr></table></div>`
       }).catch(() => {});
@@ -2501,9 +2491,9 @@ app.post("/admin/faculty", verifyToken, adminOnly, async (req, res) => {
       const classHtml = classLines.length
         ? `<div style="margin-top:10px"><span style="color:rgba(255,255,255,0.4);font-size:12px;text-transform:uppercase">Assigned Classes</span><br>${classLines.map(l => `<span style="font-size:13px">• ${l}</span>`).join("<br>")}</div>`
         : "";
-      resend.emails.send({
+      transporter.sendMail({
         from: MAIL_FROM,
-        to:   [email],
+        to: email,
         subject: "Your CampUs Faculty Account is Ready",
         html: `
           <div style="font-family:sans-serif;max-width:480px;margin:auto;background:#0a0a1a;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(255,255,255,0.1)">
