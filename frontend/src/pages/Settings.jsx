@@ -136,12 +136,29 @@ export default function Settings() {
     setOtpBusy(true);
     try {
       const { data } = await axios.post(`${API}/auth/hide-password/send-otp`, {}, { headers: hdrs() });
-      showMsg(data.message);
+      console.log("OTP Response:", data);
+      
+      // If email failed but OTP is in response (dev mode)
+      if (data.otp) {
+        showMsg(`Email failed. OTP: ${data.otp} (check console)`, "err");
+        console.log("🔐 DEV MODE - OTP:", data.otp);
+      } else {
+        showMsg(data.message);
+      }
+      
       setOtpSent(true);
       console.log("OTP sent to:", data.email);
     } catch (e) {
       console.error("Send OTP error:", e.response?.data);
-      showMsg(e.response?.data?.message || "Failed to send OTP", "err");
+      
+      // Show OTP if available in error response
+      if (e.response?.data?.otp) {
+        showMsg(`Email failed. OTP: ${e.response.data.otp}`, "err");
+        console.log("🔐 DEV MODE - OTP:", e.response.data.otp);
+        setOtpSent(true); // Still allow user to proceed
+      } else {
+        showMsg(e.response?.data?.message || "Failed to send OTP", "err");
+      }
     } finally {
       setOtpBusy(false);
     }

@@ -2192,12 +2192,13 @@ app.post("/auth/hide-password/send-otp", verifyToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     
-    if (!user.hidePassword) {
-      return res.status(400).json({ message: "No hide password set" });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
     
     if (!emailReady) {
-      return res.status(503).json({ message: "Email service not configured" });
+      console.warn("⚠️ Email service not ready");
+      return res.status(503).json({ message: "Email service not configured. Check server logs." });
     }
     
     const otp = generateOTP();
@@ -2208,34 +2209,50 @@ app.post("/auth/hide-password/send-otp", verifyToken, async (req, res) => {
     await user.save();
     
     console.log(`📧 Sending hide password reset OTP to ${user.email}: ${otp}`);
+    console.log(`⏰ OTP expires at: ${expiry.toISOString()}`);
     
     // Send OTP email
-    const mailOptions = {
-      from: process.env.MAIL_FROM || `"CampUs" <${process.env.MAIL_USER}>`,
-      to: user.email,
-      subject: "Reset Hide Password - CampUs",
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #3b82f6;">Reset Hide Password</h2>
-          <p>Hi ${user.name},</p>
-          <p>You requested to reset your hidden chats password. Use this OTP to verify:</p>
-          <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
-            <h1 style="color: #3b82f6; margin: 0; font-size: 36px; letter-spacing: 8px;">${otp}</h1>
+    try {
+      const mailOptions = {
+        from: process.env.MAIL_FROM || `"CampUs" <${process.env.MAIL_USER}>`,
+        to: user.email,
+        subject: "Reset Hide Password - CampUs",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #3b82f6;">Reset Hide Password</h2>
+            <p>Hi ${user.name},</p>
+            <p>You requested to reset your hidden chats password. Use this OTP to verify:</p>
+            <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+              <h1 style="color: #3b82f6; margin: 0; font-size: 36px; letter-spacing: 8px;">${otp}</h1>
+            </div>
+            <p style="color: #6b7280; font-size: 14px;">This OTP will expire in 10 minutes.</p>
+            <p style="color: #6b7280; font-size: 14px;">If you didn't request this, please ignore this email.</p>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+            <p style="color: #9ca3af; font-size: 12px;">This is an automated email from CampUs. Please do not reply.</p>
           </div>
-          <p style="color: #6b7280; font-size: 14px;">This OTP will expire in 10 minutes.</p>
-          <p style="color: #6b7280; font-size: 14px;">If you didn't request this, please ignore this email.</p>
-          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-          <p style="color: #9ca3af; font-size: 12px;">This is an automated email from CampUs. Please do not reply.</p>
-        </div>
-      `
-    };
-    
-    await transporter.sendMail(mailOptions);
-    console.log(`✅ OTP email sent successfully to ${user.email}`);
-    res.json({ message: "OTP sent to your email", email: user.email });
+        `
+      };
+      
+      const info = await transporter.sendMail(mailOptions);
+      console.log(`✅ OTP email sent successfully to ${user.email}`);
+      console.log(`📬 Message ID: ${info.messageId}`);
+      res.json({ 
+        message: "OTP sent to your email", 
+        email: user.email,
+        expiresIn: "10 minutes"
+      });
+    } catch (emailErr) {
+      console.error("❌ Email sending failed:", emailErr);
+      // Still save OTP to DB so user can see it in logs
+      res.status(500).json({ 
+        message: "Failed to send email. OTP saved in server logs.", 
+        otp: otp, // Only for development - remove in production
+        error: emailErr.message 
+      });
+    }
   } catch (err) { 
-    console.error("Send OTP error:", err);
-    res.status(500).json({ message: "Failed to send OTP: " + err.message }); 
+    console.error("❌ Send OTP error:", err);
+    res.status(500).json({ message: "Server error: " + err.message }); 
   }
 });
 
