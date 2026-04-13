@@ -2196,6 +2196,10 @@ app.post("/auth/hide-password/send-otp", verifyToken, async (req, res) => {
       return res.status(400).json({ message: "No hide password set" });
     }
     
+    if (!emailReady) {
+      return res.status(503).json({ message: "Email service not configured" });
+    }
+    
     const otp = generateOTP();
     const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
     
@@ -2203,9 +2207,11 @@ app.post("/auth/hide-password/send-otp", verifyToken, async (req, res) => {
     user.otpExpiry = expiry;
     await user.save();
     
+    console.log(`📧 Sending hide password reset OTP to ${user.email}: ${otp}`);
+    
     // Send OTP email
     const mailOptions = {
-      from: `"CampUs" <${process.env.MAIL_USER}>`,
+      from: process.env.MAIL_FROM || `"CampUs" <${process.env.MAIL_USER}>`,
       to: user.email,
       subject: "Reset Hide Password - CampUs",
       html: `
@@ -2218,15 +2224,18 @@ app.post("/auth/hide-password/send-otp", verifyToken, async (req, res) => {
           </div>
           <p style="color: #6b7280; font-size: 14px;">This OTP will expire in 10 minutes.</p>
           <p style="color: #6b7280; font-size: 14px;">If you didn't request this, please ignore this email.</p>
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+          <p style="color: #9ca3af; font-size: 12px;">This is an automated email from CampUs. Please do not reply.</p>
         </div>
       `
     };
     
     await transporter.sendMail(mailOptions);
-    res.json({ message: "OTP sent to your email" });
+    console.log(`✅ OTP email sent successfully to ${user.email}`);
+    res.json({ message: "OTP sent to your email", email: user.email });
   } catch (err) { 
     console.error("Send OTP error:", err);
-    res.status(500).json({ message: "Failed to send OTP" }); 
+    res.status(500).json({ message: "Failed to send OTP: " + err.message }); 
   }
 });
 
@@ -2234,6 +2243,8 @@ app.post("/auth/hide-password/send-otp", verifyToken, async (req, res) => {
 app.post("/auth/hide-password/reset", verifyToken, async (req, res) => {
   try {
     const { otp, newPassword } = req.body;
+    
+    console.log(`🔐 Reset attempt - OTP: ${otp}, User: ${req.user.username}`);
     
     if (!otp || !newPassword) {
       return res.status(400).json({ message: "OTP and new password required" });
@@ -2245,6 +2256,8 @@ app.post("/auth/hide-password/reset", verifyToken, async (req, res) => {
     
     const user = await User.findById(req.user.id);
     
+    console.log(`User OTP: ${user.otpCode}, Expiry: ${user.otpExpiry}`);
+    
     if (!user.otpCode || !user.otpExpiry) {
       return res.status(400).json({ message: "No OTP request found. Request OTP first." });
     }
@@ -2254,6 +2267,7 @@ app.post("/auth/hide-password/reset", verifyToken, async (req, res) => {
     }
     
     if (user.otpCode !== otp) {
+      console.log(`❌ OTP mismatch - Expected: ${user.otpCode}, Got: ${otp}`);
       return res.status(401).json({ message: "Invalid OTP" });
     }
     
@@ -2263,10 +2277,11 @@ app.post("/auth/hide-password/reset", verifyToken, async (req, res) => {
     user.otpExpiry = null;
     await user.save();
     
+    console.log(`✅ Hide password reset successfully for ${user.username}`);
     res.json({ message: "Hide password reset successfully" });
   } catch (err) { 
     console.error("Reset password error:", err);
-    res.status(500).json({ message: "Server error" }); 
+    res.status(500).json({ message: "Server error: " + err.message }); 
   }
 });
 

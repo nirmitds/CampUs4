@@ -135,10 +135,12 @@ export default function Settings() {
   const handleSendResetOtp = async () => {
     setOtpBusy(true);
     try {
-      await axios.post(`${API}/auth/hide-password/send-otp`, {}, { headers: hdrs() });
-      showMsg("OTP sent to your email!");
+      const { data } = await axios.post(`${API}/auth/hide-password/send-otp`, {}, { headers: hdrs() });
+      showMsg(data.message);
       setOtpSent(true);
+      console.log("OTP sent to:", data.email);
     } catch (e) {
+      console.error("Send OTP error:", e.response?.data);
       showMsg(e.response?.data?.message || "Failed to send OTP", "err");
     } finally {
       setOtpBusy(false);
@@ -154,6 +156,7 @@ export default function Settings() {
     }
     setHideBusy(true);
     try {
+      console.log("Resetting with OTP:", resetOtp);
       await axios.post(`${API}/auth/hide-password/reset`, { 
         otp: resetOtp, 
         newPassword: newHidePass 
@@ -163,7 +166,11 @@ export default function Settings() {
       setNewHidePass("");
       setShowResetMode(false);
       setOtpSent(false);
+      // Refresh user data
+      axios.get(`${API}/auth/me`, { headers: hdrs() })
+        .then(r => setUser(r.data.user)).catch(() => {});
     } catch (e) {
+      console.error("Reset error:", e.response?.data);
       showMsg(e.response?.data?.message || "Failed to reset password", "err");
     } finally {
       setHideBusy(false);
