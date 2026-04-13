@@ -189,8 +189,8 @@ mongoose.connect(process.env.MONGO_URI)
    Brevo: brevo.com → SMTP & API → Generate key
    MAIL_HOST = smtp-relay.brevo.com
    MAIL_PORT = 587
-   MAIL_USER = your Brevo login email
-   MAIL_PASS = Brevo SMTP key
+   MAIL_USER = a77172001@smtp-brevo.com
+   MAIL_PASS = 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
 ══════════════════════════════════════════ */
 const transporter = nodemailer.createTransport({
   host: process.env.MAIL_HOST || "smtp.gmail.com",
@@ -206,7 +206,7 @@ const transporter = nodemailer.createTransport({
 const emailReady = !!(
   process.env.MAIL_USER &&
   process.env.MAIL_PASS &&
-  process.env.MAIL_PASS !== "your_brevo_smtp_key_here"
+  process.env.MAIL_PASS !== "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"
 );
 
 transporter.verify((err) => {
