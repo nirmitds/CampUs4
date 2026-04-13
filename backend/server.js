@@ -16,6 +16,7 @@ const jwt        = require("jsonwebtoken");
 const bcrypt     = require("bcryptjs");
 const crypto     = require("crypto");
 const nodemailer = require("nodemailer");
+const { Resend }  = require("resend");
 const multer     = require("multer");
 const twilio     = require("twilio");
 const https      = require("https");
@@ -185,39 +186,21 @@ mongoose.connect(process.env.MONGO_URI)
   });
 
 /* ══════════════════════════════════════════
-   EMAIL — Brevo SMTP (300 free/day) or Gmail
-   Brevo: brevo.com → SMTP & API → Generate key
-   MAIL_HOST = smtp-relay.brevo.com
-   MAIL_PORT = 587
-   MAIL_USER = a77172001@smtp-brevo.com
-   MAIL_PASS = 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
+   EMAIL — Resend (resend.com)
+   1. Sign up at resend.com
+   2. Create an API key
+   3. Add to Render env: RESEND_API_KEY=re_xxxx
+   4. Set MAIL_FROM to your verified domain email
+      e.g. noreply@yourdomain.com
+      OR use Resend's shared domain for testing:
+      onboarding@resend.dev (only sends to your own email)
 ══════════════════════════════════════════ */
-const transporter = nodemailer.createTransport({
-  host: process.env.MAIL_HOST || "smtp.gmail.com",
-  port: parseInt(process.env.MAIL_PORT || "587"),
-  secure: false,
-  auth: {
-    user: process.env.MAIL_USER,
-    pass: process.env.MAIL_PASS,
-  },
-  tls: { rejectUnauthorized: false },
-  connectionTimeout: 10000,  // 10s to connect
-  greetingTimeout:   10000,  // 10s for greeting
-  socketTimeout:     15000,  // 15s socket idle
-  pool: false,               // don't pool — reconnect fresh each time
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
+const MAIL_FROM = process.env.MAIL_FROM || "CampUs <onboarding@resend.dev>";
+const emailReady = !!process.env.RESEND_API_KEY;
 
-const emailReady = !!(
-  process.env.MAIL_USER &&
-  process.env.MAIL_PASS &&
-  process.env.MAIL_PASS !== "your_brevo_smtp_key_here" &&
-  process.env.MAIL_PASS !== "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"
-);
-
-transporter.verify((err) => {
-  if (err) console.warn("⚠️  SMTP not ready:", err.message);
-  else     console.log(`📧  SMTP ready via ${process.env.MAIL_HOST || "smtp.gmail.com"}!`);
-});
+if (emailReady) console.log("📧  Resend email ready!");
+else            console.warn("⚠️  RESEND_API_KEY not set — emails will be logged to console only");
 
 /* ─── HELPERS ─── */
 function generateOTP() {
@@ -369,9 +352,8 @@ async function sendOtpEmail(toEmail, otp, type = "login") {
   console.log(`🔑  CODE  →  ${otp}`);
   console.log("═".repeat(44) + "\n");
 
-  // If no email config, skip sending
-  if (!process.env.MAIL_USER || !process.env.MAIL_PASS) {
-    console.warn("⚠️  MAIL_USER or MAIL_PASS not set — skipping email");
+  if (!emailReady) {
+    console.warn("⚠️  RESEND_API_KEY not set — skipping email send");
     return false;
   }
 
@@ -385,34 +367,35 @@ async function sendOtpEmail(toEmail, otp, type = "login") {
     : `If you didn't request this, ignore this email. Never share this code.`;
 
   try {
-    await Promise.race([
-      transporter.sendMail({
-        from: process.env.MAIL_FROM || `"CampUs 🎓" <${process.env.MAIL_USER}>`,
-        to: toEmail,
-        subject,
-        html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#05050f;font-family:'Segoe UI',sans-serif;">
-          <div style="max-width:480px;margin:40px auto;padding:40px 36px;background:#0f0f23;border-radius:20px;border:1px solid rgba(59,130,246,0.25);">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;">
-              <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:22px;">🎓</div>
-              <div>
-                <div style="font-size:18px;font-weight:800;color:#fff;">CampUs</div>
-                <div style="font-size:12px;color:rgba(255,255,255,0.35);">${isReset ? "Password Reset" : "One-Time Password"}</div>
-              </div>
+    const { data, error } = await resend.emails.send({
+      from: MAIL_FROM,
+      to:   [toEmail],
+      subject,
+      html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#05050f;font-family:'Segoe UI',sans-serif;">
+        <div style="max-width:480px;margin:40px auto;padding:40px 36px;background:#0f0f23;border-radius:20px;border:1px solid rgba(59,130,246,0.25);">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;">
+            <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:22px;">🎓</div>
+            <div>
+              <div style="font-size:18px;font-weight:800;color:#fff;">CampUs</div>
+              <div style="font-size:12px;color:rgba(255,255,255,0.35);">${isReset ? "Password Reset" : "One-Time Password"}</div>
             </div>
-            <h2 style="color:#fff;font-size:22px;font-weight:800;margin:0 0 10px;">${heading}</h2>
-            <p style="color:rgba(255,255,255,0.45);font-size:14px;line-height:1.7;margin:0 0 28px;">${subtext}</p>
-            <div style="background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.3);border-radius:16px;padding:30px;text-align:center;margin-bottom:28px;">
-              <div style="font-size:50px;font-weight:900;letter-spacing:16px;color:#fff;font-family:'Courier New',monospace;">${otp}</div>
-            </div>
-            <p style="color:rgba(255,255,255,0.28);font-size:12px;text-align:center;line-height:1.6;">${footer}</p>
           </div>
-        </body></html>`,
-      }),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Email timeout after 15s")), 15000)
-      ),
-    ]);
-    console.log(`✅ OTP email sent to ${toEmail}`);
+          <h2 style="color:#fff;font-size:22px;font-weight:800;margin:0 0 10px;">${heading}</h2>
+          <p style="color:rgba(255,255,255,0.45);font-size:14px;line-height:1.7;margin:0 0 28px;">${subtext}</p>
+          <div style="background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.3);border-radius:16px;padding:30px;text-align:center;margin-bottom:28px;">
+            <div style="font-size:50px;font-weight:900;letter-spacing:16px;color:#fff;font-family:'Courier New',monospace;">${otp}</div>
+          </div>
+          <p style="color:rgba(255,255,255,0.28);font-size:12px;text-align:center;line-height:1.6;">${footer}</p>
+        </div>
+      </body></html>`,
+    });
+
+    if (error) {
+      console.error("❌ Resend error:", error);
+      return false;
+    }
+
+    console.log(`✅ Email sent via Resend — ID: ${data.id}`);
     return true;
   } catch (err) {
     console.error(`❌ sendOtpEmail failed: ${err.message}`);
@@ -460,9 +443,9 @@ app.post("/auth/register", async (req, res) => {
 
     /* send email verification */
     if (emailReady) {
-      await transporter.sendMail({
-        from: process.env.MAIL_FROM || `"CampUs 🎓" <${process.env.MAIL_USER}>`,
-        to: email,
+      resend.emails.send({
+        from: MAIL_FROM,
+        to:   [email],
         subject: `${verifyOtp} — Verify your CampUs email`,
         html: `
           <div style="font-family:sans-serif;max-width:480px;margin:auto;background:#0a0a1a;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(59,130,246,0.2)">
@@ -485,11 +468,11 @@ app.post("/auth/register", async (req, res) => {
     await addCoins(username, 100, "Welcome to CampUs! 🎓", "bonus");
 
     /* notify admin */
-    if (emailReady && process.env.MAIL_USER) {
+    if (emailReady && process.env.ADMIN_EMAIL) {
       const now = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "full", timeStyle: "medium" });
-      transporter.sendMail({
-        from: process.env.MAIL_FROM || `"CampUs 🎓" <${process.env.MAIL_USER}>`,
-        to: process.env.MAIL_USER,
+      resend.emails.send({
+        from: MAIL_FROM,
+        to:   [process.env.ADMIN_EMAIL],
         subject: `New Student Registered — ${name} (@${username})`,
         html: `<div style="font-family:sans-serif;max-width:480px;margin:auto;background:#0a0a1a;color:#fff;border-radius:16px;padding:28px;border:1px solid rgba(59,130,246,0.2)"><h2 style="margin:0 0 16px;color:#60a5fa">New Student Registration</h2><table style="width:100%;border-collapse:collapse;font-size:14px"><tr><td style="padding:8px 0;color:rgba(255,255,255,0.5);width:120px">Name</td><td style="padding:8px 0;font-weight:600">${name}</td></tr><tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">Email</td><td style="padding:8px 0">${email}</td></tr><tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">University</td><td style="padding:8px 0">${university || "—"}</td></tr><tr><td style="padding:8px 0;color:rgba(255,255,255,0.5)">Registered At</td><td style="padding:8px 0;color:#fbbf24">${now}</td></tr></table></div>`
       }).catch(() => {});
@@ -2256,46 +2239,12 @@ app.post("/auth/hide-password/send-otp", verifyToken, async (req, res) => {
     await user.save();
     
     console.log(`📧 Sending hide password reset OTP to ${user.email}: ${otp}`);
-    console.log(`⏰ OTP expires at: ${expiry.toISOString()}`);
     
-    // Send OTP email
-    try {
-      const mailOptions = {
-        from: process.env.MAIL_FROM || `"CampUs" <${process.env.MAIL_USER}>`,
-        to: user.email,
-        subject: "Reset Hide Password - CampUs",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <h2 style="color: #3b82f6;">Reset Hide Password</h2>
-            <p>Hi ${user.name},</p>
-            <p>You requested to reset your hidden chats password. Use this OTP to verify:</p>
-            <div style="background: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
-              <h1 style="color: #3b82f6; margin: 0; font-size: 36px; letter-spacing: 8px;">${otp}</h1>
-            </div>
-            <p style="color: #6b7280; font-size: 14px;">This OTP will expire in 10 minutes.</p>
-            <p style="color: #6b7280; font-size: 14px;">If you didn't request this, please ignore this email.</p>
-            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;">
-            <p style="color: #9ca3af; font-size: 12px;">This is an automated email from CampUs. Please do not reply.</p>
-          </div>
-        `
-      };
-      
-      const info = await transporter.sendMail(mailOptions);
-      console.log(`✅ OTP email sent successfully to ${user.email}`);
-      console.log(`📬 Message ID: ${info.messageId}`);
-      res.json({ 
-        message: "OTP sent to your email", 
-        email: user.email,
-        expiresIn: "10 minutes"
-      });
-    } catch (emailErr) {
-      console.error("❌ Email sending failed:", emailErr);
-      // Still save OTP to DB so user can see it in logs
-      res.status(500).json({ 
-        message: "Failed to send email. OTP saved in server logs.", 
-        otp: otp, // Only for development - remove in production
-        error: emailErr.message 
-      });
+    const sent = await sendOtpEmail(user.email, otp);
+    if (sent) {
+      res.json({ message: "OTP sent to your email", email: user.email, expiresIn: "10 minutes" });
+    } else {
+      res.json({ message: "OTP generated — check server console", email: user.email, expiresIn: "10 minutes" });
     }
   } catch (err) { 
     console.error("❌ Send OTP error:", err);
@@ -2552,9 +2501,9 @@ app.post("/admin/faculty", verifyToken, adminOnly, async (req, res) => {
       const classHtml = classLines.length
         ? `<div style="margin-top:10px"><span style="color:rgba(255,255,255,0.4);font-size:12px;text-transform:uppercase">Assigned Classes</span><br>${classLines.map(l => `<span style="font-size:13px">• ${l}</span>`).join("<br>")}</div>`
         : "";
-      await transporter.sendMail({
-        from: `"CampUs 🎓" <${process.env.MAIL_USER}>`,
-        to: email,
+      resend.emails.send({
+        from: MAIL_FROM,
+        to:   [email],
         subject: "Your CampUs Faculty Account is Ready",
         html: `
           <div style="font-family:sans-serif;max-width:480px;margin:auto;background:#0a0a1a;color:#fff;border-radius:16px;padding:32px;border:1px solid rgba(255,255,255,0.1)">
@@ -2578,7 +2527,7 @@ app.post("/admin/faculty", verifyToken, adminOnly, async (req, res) => {
             <p style="color:rgba(255,255,255,0.3);font-size:11px;margin-top:16px;text-align:center">Please keep these credentials safe. Contact your admin to reset your password.</p>
           </div>
         `
-      });
+      }).catch(e => console.warn("Faculty welcome email failed:", e.message));
     }
 
     res.json({ ...faculty.toObject(), password: undefined });
