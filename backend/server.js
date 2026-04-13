@@ -201,6 +201,10 @@ const transporter = nodemailer.createTransport({
     pass: process.env.MAIL_PASS,
   },
   tls: { rejectUnauthorized: false },
+  connectionTimeout: 10000,  // 10s to connect
+  greetingTimeout:   10000,  // 10s for greeting
+  socketTimeout:     15000,  // 15s socket idle
+  pool: false,               // don't pool — reconnect fresh each time
 });
 
 const emailReady = !!(
@@ -374,29 +378,47 @@ async function sendOtpEmail(toEmail, otp, type = "login") {
     ? `If you didn't request a password reset, ignore this email.`
     : `If you didn't request this, ignore this email. Never share this code.`;
 
-  await transporter.sendMail({
-    from: process.env.MAIL_FROM || `"CampUs 🎓" <${process.env.MAIL_USER}>`,
-    to: toEmail,
-    subject,
-    html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#05050f;font-family:'Segoe UI',sans-serif;">
-      <div style="max-width:480px;margin:40px auto;padding:40px 36px;background:#0f0f23;border-radius:20px;border:1px solid rgba(59,130,246,0.25);">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;">
-          <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:22px;">🎓</div>
-          <div>
-            <div style="font-size:18px;font-weight:800;color:#fff;">CampUs</div>
-            <div style="font-size:12px;color:rgba(255,255,255,0.35);">${isReset ? "Password Reset" : "One-Time Password"}</div>
+  try {
+    // Race between sendMail and a 15s timeout
+    await Promise.race([
+      transporter.sendMail({
+        from: process.env.MAIL_FROM || `"CampUs 🎓" <${process.env.MAIL_USER}>`,
+        to: toEmail,
+        subject,
+        html: `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#05050f;font-family:'Segoe UI',sans-serif;">
+          <div style="max-width:480px;margin:40px auto;padding:40px 36px;background:#0f0f23;border-radius:20px;border:1px solid rgba(59,130,246,0.25);">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;">
+              <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:22px;">🎓</div>
+              <div>
+                <div style="font-size:18px;font-weight:800;color:#fff;">CampUs</div>
+                <div style="font-size:12px;color:rgba(255,255,255,0.35);">${isReset ? "Password Reset" : "One-Time Password"}</div>
+              </div>
+            </div>
+            <h2 style="color:#fff;font-size:22px;font-weight:800;margin:0 0 10px;">${heading}</h2>
+            <p style="color:rgba(255,255,255,0.45);font-size:14px;line-height:1.7;margin:0 0 28px;">${subtext}</p>
+            <div style="background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.3);border-radius:16px;padding:30px;text-align:center;margin-bottom:28px;">
+              <div style="font-size:50px;font-weight:900;letter-spacing:16px;color:#fff;font-family:'Courier New',monospace;">${otp}</div>
+            </div>
+            <p style="color:rgba(255,255,255,0.28);font-size:12px;text-align:center;line-height:1.6;">${footer}</p>
           </div>
-        </div>
-        <h2 style="color:#fff;font-size:22px;font-weight:800;margin:0 0 10px;">${heading}</h2>
-        <p style="color:rgba(255,255,255,0.45);font-size:14px;line-height:1.7;margin:0 0 28px;">${subtext}</p>
-        <div style="background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.3);border-radius:16px;padding:30px;text-align:center;margin-bottom:28px;">
-          <div style="font-size:50px;font-weight:900;letter-spacing:16px;color:#fff;font-family:'Courier New',monospace;">${otp}</div>
-        </div>
-        <p style="color:rgba(255,255,255,0.28);font-size:12px;text-align:center;line-height:1.6;">${footer}</p>
-      </div>
-    </body></html>`,
-  });
-  return true;
+        </body></html>`,
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Email timeout after 15s")), 15000)
+      ),
+    ]);
+    console.log(`✅ OTP email sent to ${toEmail}`);
+    return true;
+  } catch (err) {
+    console.error(`❌ sendOtpEmail failed: ${err.message}`);
+    // Log OTP to console as fallback
+    console.log("\n" + "═".repeat(44));
+    console.log(`📧  EMAIL FAILED — FALLBACK OTP`);
+    console.log(`📬  TO   →  ${toEmail}`);
+    console.log(`🔑  CODE →  ${otp}`);
+    console.log("═".repeat(44) + "\n");
+    return false;
+  }
 }
 
 /* ══════════════════════════════════════════════════════
@@ -647,6 +669,13 @@ app.post("/auth/login", async (req, res) => {
    Phone: finds user by phone, sends SMS (Twilio stub)
 ══════════════════════════════════════════════════════ */
 app.post("/auth/send-otp", async (req, res) => {
+  // Set a hard 20s timeout on this route so it never hangs
+  res.setTimeout(20000, () => {
+    if (!res.headersSent) {
+      res.status(504).json({ message: "Request timed out. Server may be waking up — try again in a few seconds." });
+    }
+  });
+
   try {
     const { identifier } = req.body;
     if (!identifier) return res.status(400).json({ message: "Email or phone required" });
@@ -663,17 +692,9 @@ app.post("/auth/send-otp", async (req, res) => {
     let user = null;
 
     if (isEmail) {
-      /*
-        Email flow:
-        • Find existing user by email (case-insensitive)
-        • If not found — still send OTP to that email
-          (they can log in if they registered with it,
-           the verify step will catch it)
-      */
       user = await User.findOne({ email: trimmed });
-      targetEmail = trimmed; // always send to the entered email
+      targetEmail = trimmed;
     } else {
-      /* Phone flow — user must already exist */
       user = await User.findOne({ phone: trimmed });
       if (!user) {
         return res.status(404).json({ message: "No account found with this phone number" });
@@ -684,18 +705,11 @@ app.post("/auth/send-otp", async (req, res) => {
     const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
 
     if (user) {
-      /* save OTP on existing user */
       user.otpCode   = otp;
       user.otpExpiry = expiry;
       await user.save();
     } else {
-      /*
-        No user with this email yet —
-        store OTP in a temp record keyed by email
-        so verify-otp can find it.
-        We'll create a minimal placeholder user.
-      */
-      const placeholder = await User.create({
+      await User.create({
         name:     trimmed.split("@")[0],
         username: "user_" + Date.now(),
         email:    trimmed,
@@ -704,15 +718,21 @@ app.post("/auth/send-otp", async (req, res) => {
         otpCode:   otp,
         otpExpiry: expiry,
       });
-      /* we don't expose this — verify will handle it */
     }
 
     /* send OTP */
-    let sentViaEmail = false;
     if (isEmail) {
-      sentViaEmail = await sendOtpEmail(targetEmail, otp);
+      const sentViaEmail = await sendOtpEmail(targetEmail, otp);
+      if (res.headersSent) return;
+      return res.json({
+        message: sentViaEmail
+          ? `OTP sent to ${targetEmail} — check your inbox`
+          : `OTP generated — check the server console (email not configured)`,
+        devMode: !sentViaEmail,
+      });
     } else {
       const result = await sendSmsOtp(trimmed, otp);
+      if (res.headersSent) return;
       return res.json({
         message: result.sent
           ? `OTP sent via SMS to ${trimmed}`
@@ -721,16 +741,11 @@ app.post("/auth/send-otp", async (req, res) => {
       });
     }
 
-    res.json({
-      message: sentViaEmail
-        ? `OTP sent to ${targetEmail} — check your inbox`
-        : `OTP generated — check the server console (Gmail not configured yet)`,
-      devMode: !sentViaEmail && isEmail,
-    });
-
   } catch (err) {
     console.error("send-otp error:", err);
-    res.status(500).json({ message: "Failed to send OTP. " + err.message });
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Failed to send OTP. " + err.message });
+    }
   }
 });
 
