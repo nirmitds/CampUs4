@@ -297,13 +297,15 @@ export default function SocialChat() {
       return;
     }
     try {
-      await axios.put(`${API}/dm/${username}/hide`, {}, { headers: hdrs() });
+      const response = await axios.put(`${API}/dm/${username}/hide`, {}, { headers: hdrs() });
+      console.log("Hide response:", response.data);
       loadConvs(); // Refresh to remove from list
       if (active === username) {
         setActive(null); // Close chat if it's currently open
       }
     } catch (e) {
-      alert(e.response?.data?.message || "Failed to hide chat");
+      console.error("Hide error:", e.response?.data || e);
+      alert(e.response?.data?.message || "Failed to hide chat. Check console for details.");
     }
   };
 

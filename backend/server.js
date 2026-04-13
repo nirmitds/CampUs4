@@ -2125,14 +2125,40 @@ app.delete("/dm/message/:msgId", verifyToken, async (req, res) => {
 app.put("/dm/:username/hide", verifyToken, async (req, res) => {
   try {
     const me = req.user.username;
-    const conv = await DirectConversation.findOne({ participants: { $all: [[me, req.params.username].sort()] } })
-      || await DirectConversation.findOne({ participants: { $all: [me, req.params.username] } });
-    if (!conv) return res.status(404).json({ message: "Conversation not found" });
-    if (!conv.hiddenFor) conv.hiddenFor = [];
-    if (!conv.hiddenFor.includes(me)) conv.hiddenFor.push(me);
+    const other = req.params.username;
+    
+    // Sort participants to match how they're stored
+    const participants = [me, other].sort();
+    
+    // Find conversation with sorted participants
+    let conv = await DirectConversation.findOne({ participants });
+    
+    // If conversation doesn't exist, create it first
+    if (!conv) {
+      conv = await DirectConversation.create({ 
+        participants, 
+        unread: { [me]: 0, [other]: 0 },
+        hiddenFor: [me]
+      });
+      return res.json({ message: "Chat hidden successfully" });
+    }
+    
+    // Initialize hiddenFor array if it doesn't exist
+    if (!conv.hiddenFor) {
+      conv.hiddenFor = [];
+    }
+    
+    // Add user to hiddenFor if not already there
+    if (!conv.hiddenFor.includes(me)) {
+      conv.hiddenFor.push(me);
+    }
+    
     await conv.save();
-    res.json({ message: "Chat hidden" });
-  } catch (err) { res.status(500).json({ message: "Server error" }); }
+    res.json({ message: "Chat hidden successfully" });
+  } catch (err) { 
+    console.error("Hide chat error:", err);
+    res.status(500).json({ message: "Server error: " + err.message }); 
+  }
 });
 
 /* set/update hide password */
@@ -2192,15 +2218,29 @@ app.post("/dm/hidden/verify", verifyToken, async (req, res) => {
 app.put("/dm/:username/unhide", verifyToken, async (req, res) => {
   try {
     const me = req.user.username;
-    const conv = await DirectConversation.findOne({ participants: { $all: [[me, req.params.username].sort()] } })
-      || await DirectConversation.findOne({ participants: { $all: [me, req.params.username] } });
-    if (!conv) return res.status(404).json({ message: "Conversation not found" });
+    const other = req.params.username;
+    
+    // Sort participants to match how they're stored
+    const participants = [me, other].sort();
+    
+    // Find conversation with sorted participants
+    const conv = await DirectConversation.findOne({ participants });
+    
+    if (!conv) {
+      return res.status(404).json({ message: "Conversation not found" });
+    }
+    
+    // Remove user from hiddenFor array
     if (conv.hiddenFor) {
       conv.hiddenFor = conv.hiddenFor.filter(u => u !== me);
       await conv.save();
     }
-    res.json({ message: "Chat unhidden" });
-  } catch (err) { res.status(500).json({ message: "Server error" }); }
+    
+    res.json({ message: "Chat unhidden successfully" });
+  } catch (err) { 
+    console.error("Unhide chat error:", err);
+    res.status(500).json({ message: "Server error: " + err.message }); 
+  }
 });
 
 /* delete exchange chat message */
