@@ -547,17 +547,50 @@ app.post("/auth/resend-verify-email", async (req, res) => {
     user.otpExpiry = expiry;
     await user.save();
 
-    if (emailReady) {
-      await transporter.sendMail({
-        from: process.env.MAIL_FROM || `"CampUs 🎓" <${process.env.MAIL_USER}>`,
-        to: email,
-        subject: `${otp} — Verify your CampUs email`,
-        html: `<div style="font-family:sans-serif;max-width:480px;margin:auto;background:#0a0a1a;color:#fff;border-radius:16px;padding:32px"><h2 style="color:#60a5fa">Verify your email</h2><div style="background:rgba(59,130,246,0.12);border-radius:16px;padding:28px;text-align:center;margin:20px 0"><div style="font-size:48px;font-weight:900;letter-spacing:14px;color:#fff;font-family:monospace">${otp}</div></div><p style="color:rgba(255,255,255,0.4);font-size:12px;text-align:center">Valid for 24 hours</p></div>`
-      });
-    } else { console.log(`📧 RESEND VERIFY OTP for ${email}: ${otp}`); }
-
+    await sendOtpEmail(email, otp);
     res.json({ message: `Verification code sent to ${email}` });
   } catch (err) { res.status(500).json({ message: "Failed" }); }
+});
+
+/* ── CHANGE EMAIL during verification (keeps all user data, just updates email) ── */
+app.post("/auth/change-verify-email", async (req, res) => {
+  try {
+    const { oldEmail, newEmail } = req.body;
+    if (!oldEmail || !newEmail) return res.status(400).json({ message: "Both emails required" });
+
+    const oldTrimmed = oldEmail.trim().toLowerCase();
+    const newTrimmed = newEmail.trim().toLowerCase();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newTrimmed)) {
+      return res.status(400).json({ message: "Invalid email address" });
+    }
+
+    if (oldTrimmed === newTrimmed) {
+      return res.status(400).json({ message: "New email is the same as current email" });
+    }
+
+    // Check new email not already taken by another verified user
+    const existing = await User.findOne({ email: newTrimmed, emailVerified: true });
+    if (existing) return res.status(400).json({ message: "This email is already in use" });
+
+    // Find the unverified user by old email
+    const user = await User.findOne({ email: oldTrimmed, emailVerified: false });
+    if (!user) return res.status(404).json({ message: "No unverified account found with this email" });
+
+    // Update email and send new OTP
+    const otp    = generateOTP();
+    const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    user.email     = newTrimmed;
+    user.otpCode   = otp;
+    user.otpExpiry = expiry;
+    await user.save();
+
+    await sendOtpEmail(newTrimmed, otp);
+    res.json({ message: `Verification code sent to ${newTrimmed}`, newEmail: newTrimmed });
+  } catch (err) {
+    console.error("change-verify-email error:", err);
+    res.status(500).json({ message: "Server error: " + err.message });
+  }
 });
 
 /* ── SEND PHONE OTP FOR REGISTRATION ── */

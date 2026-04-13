@@ -61,6 +61,8 @@ function Auth() {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState("");
   const [success, setSuccess] = useState("");
+  const [showChangeEmail,  setShowChangeEmail]  = useState(false);
+  const [newEmailInput,    setNewEmailInput]    = useState("");
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -167,6 +169,27 @@ function Auth() {
   const switchMode = m => {
     setMode(m); setError(""); setSuccess("");
     setOtpSent(false); setOtp(Array(6).fill("")); setDevMode(false);
+    setShowChangeEmail(false); setNewEmailInput("");
+  };
+
+  const handleChangeEmail = async () => {
+    const newEmail = newEmailInput.trim().toLowerCase();
+    if (!newEmail) return setError("Enter a new email address.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) return setError("Enter a valid email address.");
+    setError(""); setLoading(true);
+    try {
+      const { data } = await axios.post(`${API}/auth/change-verify-email`, {
+        oldEmail: otpId,
+        newEmail,
+      }, { timeout: 30000 });
+      setOtpId(data.newEmail);          // update to new email
+      setOtp(Array(6).fill(""));        // clear OTP boxes
+      setShowChangeEmail(false);
+      setNewEmailInput("");
+      setSuccess(`Code sent to ${data.newEmail}`);
+    } catch (e) {
+      setError(e.response?.data?.message || "Failed to change email.");
+    } finally { setLoading(false); }
   };
 
   return (
@@ -298,45 +321,83 @@ function Auth() {
         {/* VERIFY EMAIL (after registration) */}
         {mode === "verify-email" && (
           <>
-            <div style={{ textAlign:"center", marginBottom:16 }}>
-              <div style={{ fontSize:40, marginBottom:8 }}>📧</div>
-              <div style={{ fontSize:14, fontWeight:700, color:"#fff", marginBottom:4 }}>Verify your email</div>
-              <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>
-                Enter the code sent to <strong style={{ color:"#60a5fa" }}>{otpId}</strong>
-              </div>
-            </div>
-            <OtpBoxes otp={otp} setOtp={setOtp} />
-            <button className="auth-btn" style={{ marginTop:12 }} disabled={loading || otp.join("").length < 6}
-              onClick={async () => {
-                setError(""); setLoading(true);
-                try {
-                  const { data } = await axios.post(`${API}/auth/verify-registration-email`, { email: otpId, otp: otp.join("") }, { timeout: 60000 });
-                  if (data.token) { localStorage.setItem("token", data.token); navigate("/student"); }
-                  else { setSuccess(data.message); setTimeout(() => navigate("/"), 1500); }
-                } catch (e) { setError(e.response?.data?.message || "Verification failed."); }
-                finally { setLoading(false); }
-              }}>
-              {loading ? "Verifying…" : "Verify & Sign In →"}
-            </button>
-            <div style={{ textAlign:"center", marginTop:12, fontSize:12, color:"rgba(255,255,255,0.4)", display:"flex", justifyContent:"center", gap:8, flexWrap:"wrap" }}>
-              <span style={{ color:"#60a5fa", cursor:"pointer" }}
-                onClick={async () => {
-                  try { await axios.post(`${API}/auth/resend-verify-email`, { email: otpId }); setSuccess("Code resent!"); setOtp(Array(6).fill("")); }
-                  catch (e) { setError(e.response?.data?.message || "Failed"); }
-                }}>
-                Resend code
-              </span>
-              <span style={{ color:"rgba(255,255,255,0.2)" }}>·</span>
-              <span style={{ color:"#a78bfa", cursor:"pointer" }}
-                onClick={() => { setOtp(Array(6).fill("")); setError(""); setSuccess(""); }}>
-                Re-enter OTP
-              </span>
-              <span style={{ color:"rgba(255,255,255,0.2)" }}>·</span>
-              <span style={{ color:"rgba(255,255,255,0.4)", cursor:"pointer" }}
-                onClick={() => { setMode("password"); setError(""); setSuccess(""); setOtpId(""); setOtp(Array(6).fill("")); }}>
-                Change email
-              </span>
-            </div>
+            {!showChangeEmail ? (
+              <>
+                <div style={{ textAlign:"center", marginBottom:16 }}>
+                  <div style={{ fontSize:40, marginBottom:8 }}>📧</div>
+                  <div style={{ fontSize:14, fontWeight:700, color:"#fff", marginBottom:4 }}>Verify your email</div>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)" }}>
+                    Enter the code sent to <strong style={{ color:"#60a5fa" }}>{otpId}</strong>
+                  </div>
+                </div>
+                <OtpBoxes otp={otp} setOtp={setOtp} />
+                <button className="auth-btn" style={{ marginTop:12 }} disabled={loading || otp.join("").length < 6}
+                  onClick={async () => {
+                    setError(""); setLoading(true);
+                    try {
+                      const { data } = await axios.post(`${API}/auth/verify-registration-email`, { email: otpId, otp: otp.join("") }, { timeout: 60000 });
+                      if (data.token) { localStorage.setItem("token", data.token); navigate("/student"); }
+                      else { setSuccess(data.message); setTimeout(() => navigate("/"), 1500); }
+                    } catch (e) { setError(e.response?.data?.message || "Verification failed."); }
+                    finally { setLoading(false); }
+                  }}>
+                  {loading ? "Verifying…" : "Verify & Sign In →"}
+                </button>
+                <div style={{ textAlign:"center", marginTop:12, fontSize:12, display:"flex", justifyContent:"center", gap:8, flexWrap:"wrap" }}>
+                  <span style={{ color:"#60a5fa", cursor:"pointer" }}
+                    onClick={async () => {
+                      try {
+                        await axios.post(`${API}/auth/resend-verify-email`, { email: otpId });
+                        setSuccess("Code resent!"); setOtp(Array(6).fill(""));
+                      } catch (e) { setError(e.response?.data?.message || "Failed"); }
+                    }}>
+                    Resend code
+                  </span>
+                  <span style={{ color:"rgba(255,255,255,0.2)" }}>·</span>
+                  <span style={{ color:"#a78bfa", cursor:"pointer" }}
+                    onClick={() => { setOtp(Array(6).fill("")); setError(""); setSuccess(""); }}>
+                    Re-enter OTP
+                  </span>
+                  <span style={{ color:"rgba(255,255,255,0.2)" }}>·</span>
+                  <span style={{ color:"#f59e0b", cursor:"pointer" }}
+                    onClick={() => { setShowChangeEmail(true); setNewEmailInput(""); setError(""); setSuccess(""); }}>
+                    Change email
+                  </span>
+                </div>
+              </>
+            ) : (
+              /* ── Change Email Form ── */
+              <>
+                <div style={{ textAlign:"center", marginBottom:16 }}>
+                  <div style={{ fontSize:36, marginBottom:8 }}>✉️</div>
+                  <div style={{ fontSize:14, fontWeight:700, color:"#fff", marginBottom:4 }}>Change Email Address</div>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", lineHeight:1.5 }}>
+                    Enter a new email. Your account details (password, phone, etc.) will be kept.
+                  </div>
+                </div>
+                <div style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:10, padding:"10px 14px", fontSize:12, color:"rgba(255,255,255,0.4)", marginBottom:12 }}>
+                  Current: <strong style={{ color:"rgba(255,255,255,0.6)" }}>{otpId}</strong>
+                </div>
+                <div className="auth-field">
+                  <input className="auth-input" type="email" placeholder="Enter new email address"
+                    value={newEmailInput}
+                    onChange={e => { setNewEmailInput(e.target.value); setError(""); }}
+                    onKeyDown={e => e.key === "Enter" && handleChangeEmail()}
+                    autoFocus
+                  />
+                </div>
+                <button className="auth-btn" disabled={loading || !newEmailInput.trim()}
+                  onClick={handleChangeEmail}>
+                  {loading ? "Updating…" : "Update & Send OTP →"}
+                </button>
+                <p style={{ textAlign:"center", marginTop:10, fontSize:12 }}>
+                  <span style={{ color:"rgba(255,255,255,0.4)", cursor:"pointer" }}
+                    onClick={() => { setShowChangeEmail(false); setError(""); setSuccess(""); }}>
+                    ← Back
+                  </span>
+                </p>
+              </>
+            )}
           </>
         )}
 
