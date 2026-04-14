@@ -422,6 +422,21 @@ function Auth() {
                     Change email
                   </span>
                 </div>
+
+                {/* Contact Admin fallback */}
+                <div style={{ marginTop:16, padding:"12px 14px", background:"rgba(245,158,11,0.07)", border:"1px solid rgba(245,158,11,0.2)", borderRadius:10, textAlign:"center" }}>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginBottom:8 }}>
+                    Not receiving OTP?
+                  </div>
+                  <a
+                    href={`mailto:campus4292@gmail.com?subject=OTP%20Request%20-%20CampUs&body=Hi%20Admin%2C%0A%0AI%20am%20unable%20to%20receive%20the%20OTP%20on%20my%20email%3A%20${encodeURIComponent(otpId)}%0A%0APlease%20send%20me%20the%20OTP%20to%20login%20to%20CampUs.%0A%0AThank%20you.`}
+                    style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"7px 16px", background:"rgba(245,158,11,0.15)", border:"1px solid rgba(245,158,11,0.35)", borderRadius:8, color:"#fbbf24", fontSize:12, fontWeight:600, textDecoration:"none" }}>
+                    ✉️ Contact Admin for OTP
+                  </a>
+                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.25)", marginTop:6 }}>
+                    Opens your email app — sends request to admin
+                  </div>
+                </div>
               </>
             )}
 
