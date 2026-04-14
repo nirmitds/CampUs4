@@ -16,7 +16,6 @@ const jwt        = require("jsonwebtoken");
 const bcrypt     = require("bcryptjs");
 const crypto     = require("crypto");
 const nodemailer = require("nodemailer");
-const { Resend }  = require("resend");
 const multer     = require("multer");
 const twilio     = require("twilio");
 const https      = require("https");
@@ -187,26 +186,27 @@ mongoose.connect(process.env.MONGO_URI)
 
 /* ══════════════════════════════════════════
    EMAIL — Gmail SMTP via Nodemailer
+   Set in Render env:
+     MAIL_USER = your_gmail@gmail.com
+     MAIL_PASS = 16-char Gmail App Password
+   Gmail → Manage Account → Security → 2FA ON
+   → App Passwords → Generate → copy 16 chars
 ══════════════════════════════════════════ */
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,          // SSL on port 465 — more reliable than STARTTLS
   auth: {
     user: process.env.MAIL_USER,
     pass: process.env.MAIL_PASS,
   },
+  tls: { rejectUnauthorized: false },
 });
 
 const emailReady = !!(process.env.MAIL_USER && process.env.MAIL_PASS);
-const MAIL_FROM  = process.env.MAIL_FROM || `"CampUs 🎓" <${process.env.MAIL_USER}>`;
+const MAIL_FROM  = `"CampUs 🎓" <${process.env.MAIL_USER}>`;
 
-if (emailReady) {
-  transporter.verify((err) => {
-    if (err) console.warn("⚠️  Gmail SMTP not ready:", err.message);
-    else     console.log(`📧  Gmail SMTP ready — ${process.env.MAIL_USER}`);
-  });
-} else {
-  console.warn("⚠️  MAIL_USER / MAIL_PASS not set — emails logged to console only");
-}
+console.log(`📧  emailReady=${emailReady}  MAIL_USER=${process.env.MAIL_USER || "NOT SET"}`);
 
 /* ─── HELPERS ─── */
 function generateOTP() {
@@ -352,17 +352,16 @@ function signToken(user) {
 async function sendOtpEmail(toEmail, otp, type = "login") {
   const isReset = type === "reset";
 
-  console.log("\n" + "═".repeat(44));
-  console.log(`📧  OTP  →  ${toEmail}  |  CODE: ${otp}`);
-  console.log("═".repeat(44) + "\n");
+  console.log(`\n📧 OTP for ${toEmail}: ${otp}\n`);
 
-  if (!emailReady) return false;
+  if (!emailReady) {
+    console.warn("⚠️  MAIL_USER/MAIL_PASS not set");
+    return false;
+  }
 
-  const subject = isReset
-    ? `${otp} — Reset your CampUs password`
-    : `${otp} is your CampUs login code`;
+  const subject = isReset ? `${otp} — Reset your CampUs password` : `${otp} is your CampUs login code`;
 
-  const otpHtml = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#05050f;font-family:'Segoe UI',sans-serif;">
+  const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#05050f;font-family:'Segoe UI',sans-serif;">
     <div style="max-width:480px;margin:40px auto;padding:40px 36px;background:#0f0f23;border-radius:20px;border:1px solid rgba(59,130,246,0.25);">
       <div style="margin-bottom:24px;">
         <div style="font-size:18px;font-weight:800;color:#fff;">🎓 CampUs</div>
@@ -370,25 +369,24 @@ async function sendOtpEmail(toEmail, otp, type = "login") {
       </div>
       <h2 style="color:#fff;font-size:22px;font-weight:800;margin:0 0 10px;">${isReset ? "Reset your password" : "Your login code"}</h2>
       <p style="color:rgba(255,255,255,0.45);font-size:14px;line-height:1.7;margin:0 0 28px;">
-        ${isReset
-          ? "Use the code below to reset your password. It expires in <strong style='color:#fff;'>15 minutes</strong>."
-          : "Use the code below to sign in. It expires in <strong style='color:#fff;'>10 minutes</strong>."}
+        ${isReset ? "Use the code below to reset your password. Expires in 15 minutes." : "Use the code below to sign in. Expires in 10 minutes."}
       </p>
       <div style="background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.3);border-radius:16px;padding:30px;text-align:center;margin-bottom:28px;">
         <div style="font-size:50px;font-weight:900;letter-spacing:16px;color:#fff;font-family:'Courier New',monospace;">${otp}</div>
       </div>
       <p style="color:rgba(255,255,255,0.28);font-size:12px;text-align:center;">
-        ${isReset ? "If you didn't request a password reset, ignore this email." : "If you didn't request this, ignore this email. Never share this code."}
+        ${isReset ? "Didn't request this? Ignore this email." : "Never share this code with anyone."}
       </p>
     </div>
   </body></html>`;
 
   try {
-    await transporter.sendMail({ from: MAIL_FROM, to: toEmail, subject, html: otpHtml });
-    console.log(`✅ OTP email sent to ${toEmail}`);
+    const info = await transporter.sendMail({ from: MAIL_FROM, to: toEmail, subject, html });
+    console.log(`✅ Email sent to ${toEmail} — messageId: ${info.messageId}`);
     return true;
   } catch (err) {
-    console.error(`❌ sendOtpEmail failed: ${err.message}`);
+    console.error(`❌ Gmail SMTP error: ${err.message}`);
+    console.error(`   Code: ${err.code}  ResponseCode: ${err.responseCode}`);
     return false;
   }
 }
