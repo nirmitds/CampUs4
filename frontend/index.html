@@ -23,5 +23,23 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Disable autocomplete on all inputs globally
+      document.addEventListener("DOMContentLoaded", () => {
+        document.querySelectorAll("input, textarea, select").forEach(el => {
+          el.setAttribute("autocomplete", "off");
+        });
+      });
+      // Also handle dynamically added inputs
+      const obs = new MutationObserver(muts => {
+        muts.forEach(m => m.addedNodes.forEach(n => {
+          if (n.nodeType === 1) {
+            if (n.matches?.("input,textarea,select")) n.setAttribute("autocomplete","off");
+            n.querySelectorAll?.("input,textarea,select").forEach(el => el.setAttribute("autocomplete","off"));
+          }
+        }));
+      });
+      obs.observe(document.body, { childList: true, subtree: true });
+    </script>
   </body>
 </html>

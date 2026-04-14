@@ -100,7 +100,7 @@ export default function AdminLogin() {
             placeholder="Username or Email"
             value={username}
             onChange={e => setUsername(e.target.value)}
-            autoComplete="username"
+            autoComplete="off"
           />
         </div>
 
@@ -119,7 +119,7 @@ export default function AdminLogin() {
             placeholder="Password"
             value={password}
             onChange={e => setPassword(e.target.value)}
-            autoComplete="current-password"
+            autoComplete="off"
           />
           <button type="button"
             onClick={() => setShowPw(!showPw)}

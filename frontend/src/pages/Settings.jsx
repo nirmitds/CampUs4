@@ -87,6 +87,7 @@ export default function Settings() {
   };
 
   const handleLogout = () => {
+    if (!confirm("Are you sure you want to logout?")) return;
     localStorage.removeItem("token");
     navigate("/");
   };

@@ -2,6 +2,24 @@
   box-sizing: border-box;
 }
 
+/* ── Disable browser autofill yellow/blue highlight globally ── */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #0d0d22 inset !important;
+  -webkit-text-fill-color: #fff !important;
+  caret-color: #fff;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/* Firefox */
+input, textarea, select {
+  filter: none;
+}
+
 html, body {
   margin: 0;
   padding: 0;

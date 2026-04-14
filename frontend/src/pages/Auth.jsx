@@ -220,17 +220,17 @@ function Auth() {
 
         {/* PASSWORD */}
         {mode === "password" && (
-          <form onSubmit={e => { e.preventDefault(); handlePasswordLogin(); }} autoComplete="on">
+          <form onSubmit={e => { e.preventDefault(); handlePasswordLogin(); }} autoComplete="off">
             <div className="auth-field">
               <input className="auth-input" placeholder="Username or Email"
-                autoComplete="username"
+                autoComplete="off"
                 name="username"
                 value={identifier} onChange={e => setIdentifier(e.target.value)} />
             </div>
             <div className="auth-field">
               <input className="auth-input padded-right"
                 type={showPw ? "text" : "password"} placeholder="Password"
-                autoComplete="current-password"
+                autoComplete="off"
                 name="password"
                 value={password} onChange={e => setPassword(e.target.value)} />
               <button type="button" className="eye-btn" onClick={() => setShowPw(!showPw)}>

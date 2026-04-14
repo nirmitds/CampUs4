@@ -62,7 +62,7 @@ export default function FacultyLogin() {
             placeholder="FAC001 or faculty@university.edu"
             value={identifier}
             onChange={e => setIdentifier(e.target.value)}
-            autoComplete="username"
+            autoComplete="off"
             onFocus={e => e.target.style.borderColor = "rgba(6,182,212,0.5)"}
             onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.09)"}
           />
@@ -78,7 +78,7 @@ export default function FacultyLogin() {
               placeholder="Enter your password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              autoComplete="current-password"
+              autoComplete="off"
               onFocus={e => e.target.style.borderColor = "rgba(6,182,212,0.5)"}
               onBlur={e => e.target.style.borderColor = "rgba(255,255,255,0.09)"}
             />
