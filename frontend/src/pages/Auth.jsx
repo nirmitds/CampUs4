@@ -425,16 +425,21 @@ function Auth() {
 
                 {/* Contact Admin fallback */}
                 <div style={{ marginTop:16, padding:"12px 14px", background:"rgba(245,158,11,0.07)", border:"1px solid rgba(245,158,11,0.2)", borderRadius:10, textAlign:"center" }}>
-                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginBottom:8 }}>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginBottom:10 }}>
                     Not receiving OTP?
                   </div>
-                  <a
-                    href={`mailto:campus4292@gmail.com?subject=OTP%20Request%20-%20CampUs&body=Hi%20Admin%2C%0A%0AI%20am%20unable%20to%20receive%20the%20OTP%20on%20my%20email%3A%20${encodeURIComponent(otpId)}%0A%0APlease%20send%20me%20the%20OTP%20to%20login%20to%20CampUs.%0A%0AThank%20you.`}
-                    style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"7px 16px", background:"rgba(245,158,11,0.15)", border:"1px solid rgba(245,158,11,0.35)", borderRadius:8, color:"#fbbf24", fontSize:12, fontWeight:600, textDecoration:"none" }}>
+                  <button
+                    onClick={() => {
+                      const msg = `Hi Admin,\n\nI am unable to receive the OTP on my registered email: ${otpId}\n\nPlease send me the OTP so I can login to CampUs.\n\nThank you.`;
+                      navigator.clipboard.writeText(msg).catch(()=>{});
+                      const gmailUrl = `https://mail.google.com/mail/?view=cm&to=campus4292@gmail.com&su=OTP+Request+-+CampUs+Login&body=Hi+Admin%2C%0A%0AI+am+unable+to+receive+the+OTP+on+my+registered+email%3A+${encodeURIComponent(otpId)}%0A%0APlease+send+me+the+OTP+so+I+can+login+to+CampUs.%0A%0AThank+you.`;
+                      window.open(gmailUrl, "_blank");
+                    }}
+                    style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"10px 20px", background:"linear-gradient(135deg,rgba(245,158,11,0.2),rgba(234,88,12,0.15))", border:"1px solid rgba(245,158,11,0.4)", borderRadius:10, color:"#fbbf24", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"Outfit,sans-serif" }}>
                     ✉️ Contact Admin for OTP
-                  </a>
-                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.25)", marginTop:6 }}>
-                    Opens your email app — sends request to admin
+                  </button>
+                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.25)", marginTop:8 }}>
+                    Opens Gmail with message pre-filled — just hit Send
                   </div>
                 </div>
               </>
