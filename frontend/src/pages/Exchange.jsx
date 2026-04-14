@@ -36,7 +36,179 @@ function groupByUser(requests) {
 }
 
 /* ── user group card ── */
-function UserGroupCard({ group, me, myUni, onAccept, onDelete, onChat }) {
+function UserGroupCard({ group, me, myUni, onAccept, onDelete, onChat, onVisibility }) {
+  const [expanded, setExpanded] = useState(group.requests.length === 1);
+  const sameUni = myUni && group.university && group.university.toLowerCase() === myUni.toLowerCase();
+  const isMyCard = group.username === me;
+  const latest = group.latest;
+
+  const borderColor = isMyCard ? "rgba(139,92,246,0.4)"
+    : sameUni ? "rgba(59,130,246,0.35)"
+    : "rgba(255,255,255,0.07)";
+
+  const bgColor = isMyCard ? "rgba(139,92,246,0.06)"
+    : sameUni ? "rgba(59,130,246,0.05)"
+    : "rgba(255,255,255,0.04)";
+
+  const visInfo = (v) => ({
+    university: { icon:"🏫", label:"My University", color:"rgba(59,130,246,0.15)", border:"rgba(59,130,246,0.3)", text:"#60a5fa" },
+    nearby:     { icon:"📍", label:"Nearby",        color:"rgba(34,197,94,0.12)",  border:"rgba(34,197,94,0.3)",  text:"#4ade80" },
+    all:        { icon:"🌍", label:"Everyone",      color:"rgba(245,158,11,0.12)", border:"rgba(245,158,11,0.3)", text:"#fbbf24" },
+  }[v || "university"]);
+
+  const cycleVis = (v) => v === "university" ? "nearby" : v === "nearby" ? "all" : "university";
+
+  return (
+    <div style={{
+      background: bgColor,
+      border: `1px solid ${borderColor}`,
+      borderRadius: 16,
+      overflow: "hidden",
+      position: "relative",
+      transition: "all 0.2s",
+    }}>
+      {/* top accent line */}
+      {(sameUni || isMyCard) && (
+        <div style={{ height: 2, background: isMyCard ? "linear-gradient(90deg,#8b5cf6,#3b82f6)" : "linear-gradient(90deg,#3b82f6,#8b5cf6)" }} />
+      )}
+
+      {/* user header row — always visible */}
+      <div
+        style={{ padding:"14px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:12 }}
+        onClick={() => group.requests.length > 1 && setExpanded(e => !e)}
+      >
+        {/* avatar */}
+        <div style={{ width:40, height:40, borderRadius:"50%", background:"linear-gradient(135deg,#3b82f6,#8b5cf6)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:800, color:"#fff", flexShrink:0 }}>
+          {group.username[0].toUpperCase()}
+        </div>
+
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+            <span style={{ fontWeight:700, fontSize:14 }}>@{group.username}</span>
+            {isMyCard && <span className="badge badge-purple" style={{ fontSize:10 }}>You</span>}
+            {sameUni && !isMyCard && <span className="badge badge-blue" style={{ fontSize:10 }}>🏫 Same Uni</span>}
+            {group.university && <span style={{ fontSize:11, color:"rgba(255,255,255,0.35)" }}>{group.university}</span>}
+          </div>
+          <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+            {latest.title}
+            {group.requests.length > 1 && ` +${group.requests.length - 1} more`}
+          </div>
+        </div>
+
+        {/* status badges + expand toggle */}
+        <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
+          {group.hasOpen && <span className="badge badge-green" style={{ fontSize:10 }}>Open</span>}
+          {group.hasAccepted && <span className="badge badge-yellow" style={{ fontSize:10 }}>Accepted</span>}
+          {group.requests.length > 1 && (
+            <span style={{ fontSize:18, color:"rgba(255,255,255,0.4)", transition:"transform 0.2s", display:"inline-block", transform: expanded ? "rotate(180deg)" : "none" }}>⌄</span>
+          )}
+        </div>
+      </div>
+
+      {/* requests list */}
+      {expanded && (
+        <div style={{ borderTop:"1px solid rgba(255,255,255,0.07)" }}>
+          {group.requests.map((r, idx) => {
+            const isOwner    = r.ownerUsername === me;
+            const isAcceptor = r.acceptedBy === me;
+            const isLatest   = idx === 0;
+            const vis        = visInfo(r.visibility);
+            return (
+              <div key={r._id} style={{
+                padding:"12px 16px",
+                borderBottom: idx < group.requests.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
+                background: isLatest ? "rgba(255,255,255,0.03)" : "transparent",
+                position:"relative",
+              }}>
+                {isLatest && (
+                  <div style={{ position:"absolute", left:0, top:"15%", bottom:"15%", width:2, borderRadius:"0 2px 2px 0", background:"linear-gradient(180deg,#3b82f6,#8b5cf6)" }} />
+                )}
+                <div style={{ display:"flex", gap:8, alignItems:"flex-start", flexWrap:"wrap" }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:6 }}>
+                      <span className="badge badge-blue" style={{ fontSize:11 }}>{r.type}</span>
+                      <span className="badge badge-purple" style={{ fontSize:11 }}>{r.category}</span>
+                      <span className={`badge ${r.status==="Open"?"badge-green":"badge-yellow"}`} style={{ fontSize:11 }}>{r.status}</span>
+                      {r.coins > 0 && <span className="badge" style={{ background:"rgba(251,191,36,0.15)", color:"#fbbf24", fontSize:11 }}>💰 {r.coins}</span>}
+                      {isLatest && <span style={{ fontSize:10, color:"rgba(255,255,255,0.3)", alignSelf:"center" }}>Latest</span>}
+                      {/* visibility badge */}
+                      <span style={{ fontSize:10, padding:"2px 7px", borderRadius:6, background:vis.color, border:`1px solid ${vis.border}`, color:vis.text }}>
+                        {vis.icon} {vis.label}
+                      </span>
+                    </div>
+                    <div style={{ fontWeight:700, fontSize:14, marginBottom:3 }}>{r.title}</div>
+                    <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginBottom:4 }}>{r.description}</div>
+                    {r.acceptedBy && (
+                      <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)" }}>Accepted by @{r.acceptedBy}</div>
+                    )}
+                  </div>
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap", justifyContent:"flex-end", flexShrink:0 }}>
+                    {r.status==="Open" && !isOwner && (
+                      <button className="btn btn-success" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onAccept(r)}>
+                        Accept{r.coins>0?` · 💰 ${r.coins}`:""}
+                      </button>
+                    )}
+                    {r.status==="Accepted" && (isOwner||isAcceptor) && (
+                      <button className="btn btn-primary" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onChat(r._id)}>💬 Chat</button>
+                    )}
+                    {isOwner && r.status==="Open" && (
+                      <button
+                        style={{ fontSize:11, padding:"5px 10px", borderRadius:8, border:`1px solid ${vis.border}`, background:vis.color, color:vis.text, cursor:"pointer", fontFamily:"Outfit,sans-serif", fontWeight:600 }}
+                        onClick={() => onVisibility(r._id, cycleVis(r.visibility))}
+                        title="Change who can see this request">
+                        {vis.icon} {vis.label}
+                      </button>
+                    )}
+                    {isOwner && (
+                      <button className="btn btn-danger" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onDelete(r._id)}>Delete</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* if collapsed and single request, show inline actions */}
+      {!expanded && group.requests.length === 1 && (() => {
+        const r = latest;
+        const isOwner    = r.ownerUsername === me;
+        const isAcceptor = r.acceptedBy === me;
+        const vis        = visInfo(r.visibility);
+        return (
+          <div style={{ padding:"0 16px 12px", display:"flex", gap:6, justifyContent:"flex-end", flexWrap:"wrap", alignItems:"center" }}>
+            {/* visibility badge/toggle for owner */}
+            {isOwner && r.status==="Open" && (
+              <button
+                style={{ fontSize:11, padding:"5px 10px", borderRadius:8, border:`1px solid ${vis.border}`, background:vis.color, color:vis.text, cursor:"pointer", fontFamily:"Outfit,sans-serif", fontWeight:600 }}
+                onClick={() => onVisibility(r._id, cycleVis(r.visibility))}
+                title="Change who can see this request">
+                {vis.icon} {vis.label}
+              </button>
+            )}
+            {!isOwner && (
+              <span style={{ fontSize:10, padding:"2px 7px", borderRadius:6, background:vis.color, border:`1px solid ${vis.border}`, color:vis.text }}>
+                {vis.icon} {vis.label}
+              </span>
+            )}
+            {r.status==="Open" && !isOwner && (
+              <button className="btn btn-success" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onAccept(r)}>
+                Accept{r.coins>0?` · 💰 ${r.coins}`:""}
+              </button>
+            )}
+            {r.status==="Accepted" && (isOwner||isAcceptor) && (
+              <button className="btn btn-primary" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onChat(r._id)}>💬 Chat</button>
+            )}
+            {isOwner && (
+              <button className="btn btn-danger" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onDelete(r._id)}>Delete</button>
+            )}
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
   const [expanded, setExpanded] = useState(group.requests.length === 1);
   const sameUni = myUni && group.university && group.university.toLowerCase() === myUni.toLowerCase();
   const isMyCard = group.username === me;
@@ -245,6 +417,13 @@ export default function Exchange() {
     catch (e) { alert(e.response?.data?.message || "Error"); }
   };
 
+  const handleVisibility = async (id, visibility) => {
+    try {
+      await axios.put(`${API}/exchange/${id}/visibility`, { visibility }, { headers: headers() });
+      fetchFeed();
+    } catch (e) { alert(e.response?.data?.message || "Failed"); }
+  };
+
   /* apply type + search filter to a list */
   const applyFilter = (list) => list
     .filter(r => typeFilter === "All" || r.type === typeFilter)
@@ -379,6 +558,7 @@ export default function Exchange() {
                     onAccept={isVerified ? setAcceptModal : () => alert("ID verification required to accept requests. Upload your ID card in Profile.")}
                     onDelete={handleDelete}
                     onChat={id => navigate(`/student/chat/${id}`)}
+                    onVisibility={handleVisibility}
                   />
                 ))}
               </div>
