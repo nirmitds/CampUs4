@@ -132,7 +132,7 @@ export default function Admin() {
   const [assignFac,    setAssignFac]    = useState(null);
   const [assignSearch, setAssignSearch] = useState("");
   const [assignSaving, setAssignSaving] = useState(false);
-  const [assignFilter, setAssignFilter] = useState("unassigned"); // unassigned | assigned | all
+  const [assignFilter, setAssignFilter] = useState("all"); // unassigned | assigned | all
   const [assignSelected, setAssignSelected] = useState(new Set());
   const [sessionsUser, setSessionsUser] = useState(null); // show sessions for this userId
   const [loading,      setLoading]      = useState(false);
@@ -499,7 +499,12 @@ export default function Admin() {
                           {f.emailVerified ? "✕ Unverify" : "✅ Verify"}
                         </button>
                         <button className="admin-btn" style={{ background:"rgba(6,182,212,0.15)", border:"1px solid rgba(6,182,212,0.3)", color:"#22d3ee" }}
-                          onClick={() => { setAssignFac(f); setAssignSearch(""); }}>
+                          onClick={() => { 
+                            setAssignFac({ ...f, _selectedClass: f.classes?.length > 0 ? 0 : undefined }); 
+                            setAssignSearch(""); 
+                            setAssignFilter("all");
+                            setAssignSelected(new Set());
+                          }}>
                           👥 Assign Students
                         </button>
                         <button className="admin-btn admin-btn-blue"
@@ -537,7 +542,7 @@ export default function Admin() {
         {/* ── ASSIGN STUDENTS MODAL ── */}
         {assignFac && (() => {
           const cls = assignFac._selectedClass !== undefined ? assignFac.classes[assignFac._selectedClass] : null;
-          const sameUniv = users.filter(u => u.role !== "admin" && (!assignFac.university || u.university === assignFac.university));
+          const sameUniv = users.filter(u => u.role !== "admin");
           const isAssigned = u => cls && u.course === cls.course && u.branch === cls.branch && u.year === cls.year && u.semester === cls.semester;
           const searched = sameUniv.filter(u => !assignSearch ||
             u.name?.toLowerCase().includes(assignSearch.toLowerCase()) ||
