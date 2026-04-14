@@ -542,7 +542,12 @@ export default function Admin() {
         {/* ── ASSIGN STUDENTS MODAL ── */}
         {assignFac && (() => {
           const cls = assignFac._selectedClass !== undefined ? assignFac.classes[assignFac._selectedClass] : null;
-          const sameUniv = users.filter(u => u.role !== "admin");
+          const sameUniv = users.filter(u => 
+            u.role !== "admin" && 
+            (!assignFac.university || 
+              u.university?.trim().toLowerCase() === assignFac.university?.trim().toLowerCase()
+            )
+          );
           const isAssigned = u => cls && u.course === cls.course && u.branch === cls.branch && u.year === cls.year && u.semester === cls.semester;
           const searched = sameUniv.filter(u => !assignSearch ||
             u.name?.toLowerCase().includes(assignSearch.toLowerCase()) ||
@@ -561,10 +566,11 @@ export default function Admin() {
             if (!cls) return alert("Select a class first");
             setAssignSaving(true);
             try {
-              await axios.put(`${API}/admin/users/${userId}/assign-class`,
+              const { data: updated } = await axios.put(`${API}/admin/users/${userId}/assign-class`,
                 { course: cls.course, branch: cls.branch, year: cls.year, semester: cls.semester, section: cls.section },
                 { headers: hdrs() });
-              loadAll();
+              // Update local users state immediately so modal reflects change
+              setUsers(prev => prev.map(u => u._id === userId ? { ...u, ...updated } : u));
             } catch (e) { alert(e.response?.data?.message || "Failed"); }
             finally { setAssignSaving(false); }
           };
@@ -572,10 +578,11 @@ export default function Admin() {
           const doUnassign = async (userId) => {
             setAssignSaving(true);
             try {
-              await axios.put(`${API}/admin/users/${userId}/assign-class`,
+              const { data: updated } = await axios.put(`${API}/admin/users/${userId}/assign-class`,
                 { course: "", branch: "", year: "", semester: "", section: "" },
                 { headers: hdrs() });
-              loadAll();
+              // Update local users state immediately
+              setUsers(prev => prev.map(u => u._id === userId ? { ...u, ...updated } : u));
             } catch (e) { alert(e.response?.data?.message || "Failed"); }
             finally { setAssignSaving(false); }
           };
@@ -585,13 +592,17 @@ export default function Admin() {
             if (assignSelected.size === 0) return alert("Select students first");
             setAssignSaving(true);
             try {
-              await Promise.all([...assignSelected].map(id =>
+              const results = await Promise.all([...assignSelected].map(id =>
                 axios.put(`${API}/admin/users/${id}/assign-class`,
                   { course: cls.course, branch: cls.branch, year: cls.year, semester: cls.semester, section: cls.section },
-                  { headers: hdrs() })
+                  { headers: hdrs() }).then(r => r.data)
               ));
+              // Update all assigned users in local state immediately
+              setUsers(prev => prev.map(u => {
+                const updated = results.find(r => r._id === u._id);
+                return updated ? { ...u, ...updated } : u;
+              }));
               setAssignSelected(new Set());
-              loadAll();
             } catch (e) { alert(e.response?.data?.message || "Failed"); }
             finally { setAssignSaving(false); }
           };
@@ -606,6 +617,7 @@ export default function Admin() {
                   <div style={{ fontSize:17, fontWeight:800, marginBottom:2 }}>👥 Assign Students</div>
                   <div style={{ fontSize:13, color:"#22d3ee", fontWeight:600 }}>{assignFac.name}
                     {assignFac.department && <span style={{ color:"rgba(255,255,255,0.35)", fontWeight:400 }}> · {assignFac.department}</span>}
+                    {assignFac.university && <span style={{ color:"rgba(255,255,255,0.25)", fontWeight:400 }}> · {assignFac.university}</span>}
                   </div>
                 </div>
 
@@ -685,7 +697,10 @@ export default function Admin() {
                 <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column", gap:5, maxHeight:320 }}>
                   {filtered.length === 0 && (
                     <div style={{ textAlign:"center", padding:32, color:"rgba(255,255,255,0.3)", fontSize:13 }}>
-                      {assignSearch ? "No students match your search" : assignFilter === "assigned" ? "No students assigned to this class yet" : "No students found"}
+                      {assignSearch ? "No students match your search" : 
+                       assignFilter === "assigned" ? "No students assigned to this class yet" : 
+                       sameUniv.length === 0 ? `No students from ${assignFac.university || "this university"} found` :
+                       "No students found"}
                     </div>
                   )}
                   {filtered.map(u => {
