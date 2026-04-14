@@ -920,7 +920,20 @@ export default function Admin() {
                         <div style={{ fontSize:10, color:"rgba(255,255,255,0.3)" }}>Expires {new Date(o.expiresAt).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" })}</div>
                       </div>
                       <button style={{ padding:"4px 10px", borderRadius:7, background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.1)", color:"rgba(255,255,255,0.6)", fontSize:11, cursor:"pointer", fontFamily:"Outfit,sans-serif" }}
-                        onClick={() => { navigator.clipboard.writeText(o.otp); }}>
+                        onClick={e => { 
+                          navigator.clipboard.writeText(o.otp);
+                          const btn = e.currentTarget;
+                          btn.textContent = "✓ Copied";
+                          btn.style.background = "rgba(34,197,94,0.15)";
+                          btn.style.borderColor = "rgba(34,197,94,0.3)";
+                          btn.style.color = "#4ade80";
+                          setTimeout(() => {
+                            btn.textContent = "Copy";
+                            btn.style.background = "rgba(255,255,255,0.06)";
+                            btn.style.borderColor = "rgba(255,255,255,0.1)";
+                            btn.style.color = "rgba(255,255,255,0.6)";
+                          }, 2000);
+                        }}>
                         Copy
                       </button>
                     </div>

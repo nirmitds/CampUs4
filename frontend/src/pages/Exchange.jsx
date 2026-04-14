@@ -264,14 +264,20 @@ export default function Exchange() {
   } else if (scopeFilter === "myuni") {
     const uniOnly = feed.myUni.filter(r => r.ownerUsername !== me);
     sections = [{ id:"myuni", icon:"🏫", title: feed.myUniversity || "My University", color:"#60a5fa", items: applyFilter(uniOnly) }];
+  } else if (scopeFilter === "nearby") {
+    const nearbyOnly = (feed.nearby || []).filter(r => r.ownerUsername !== me);
+    sections = [{ id:"nearby", icon:"📍", title:"Nearby Universities", color:"#4ade80", items: applyFilter(nearbyOnly) }];
+  } else if (scopeFilter === "outside") {
+    const outsideOnly = (feed.others || []).filter(r => r.ownerUsername !== me);
+    sections = [{ id:"outside", icon:"🌍", title:"Outside / Other Universities", color:"#f59e0b", items: applyFilter(outsideOnly) }];
   } else {
     /* all — show sections, never show my own requests */
     const myUniFiltered  = applyFilter(feed.myUni.filter(r => r.ownerUsername !== me));
-    const nearbyFiltered = applyFilter(feed.nearby.filter(r => r.ownerUsername !== me));
-    const othersFiltered = applyFilter(feed.others.filter(r => r.ownerUsername !== me));
+    const nearbyFiltered = applyFilter((feed.nearby || []).filter(r => r.ownerUsername !== me));
+    const othersFiltered = applyFilter((feed.others || []).filter(r => r.ownerUsername !== me));
     if (myUniFiltered.length)  sections.push({ id:"myuni",  icon:"🏫", title: feed.myUniversity || "My University", color:"#60a5fa",              items: myUniFiltered });
     if (nearbyFiltered.length) sections.push({ id:"nearby", icon:"📍", title:"Nearby Universities",                 color:"#4ade80",              items: nearbyFiltered });
-    if (othersFiltered.length) sections.push({ id:"others", icon:"🌐", title:"Other Universities",                  color:"rgba(255,255,255,0.4)", items: othersFiltered });
+    if (othersFiltered.length) sections.push({ id:"others", icon:"🌍", title:"Other Universities",                  color:"rgba(255,255,255,0.4)", items: othersFiltered });
     if (!sections.length) sections = [{ id:"all", icon:"📦", title:"All Requests", color:"rgba(255,255,255,0.4)", items: [] }];
   }
 
@@ -336,7 +342,9 @@ export default function Exchange() {
       {/* scope chips */}
       <div className="chip-list" style={{ marginBottom:8 }}>
         <span className={`chip ${scopeFilter==="all"?"active":""}`} onClick={() => setScopeFilter("all")}>🌐 All</span>
-        {feed.myUniversity && <span className={`chip ${scopeFilter==="myuni"?"active":""}`} onClick={() => setScopeFilter("myuni")}>🏫 {feed.myUniversity}</span>}
+        {feed.myUniversity && <span className={`chip ${scopeFilter==="myuni"?"active":""}`} onClick={() => setScopeFilter("myuni")}>🏫 My University</span>}
+        {feed.nearby?.length > 0 && <span className={`chip ${scopeFilter==="nearby"?"active":""}`} onClick={() => setScopeFilter("nearby")}>📍 Nearby Universities</span>}
+        <span className={`chip ${scopeFilter==="outside"?"active":""}`} onClick={() => setScopeFilter("outside")}>🌍 Outside</span>
         <span className={`chip ${scopeFilter==="mine"?"active":""}`} onClick={() => setScopeFilter("mine")}>👤 Mine</span>
       </div>
 
