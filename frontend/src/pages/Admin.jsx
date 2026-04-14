@@ -135,8 +135,6 @@ export default function Admin() {
   const [assignFilter, setAssignFilter] = useState("all"); // unassigned | assigned | all
   const [assignSelected, setAssignSelected] = useState(new Set());
   const [activeOtps,   setActiveOtps]   = useState({ students:[], faculty:[] });
-  const [secStats,     setSecStats]     = useState(null);
-  const [secLoading,   setSecLoading]   = useState(false);
   const [sessionsUser, setSessionsUser] = useState(null); // show sessions for this userId
   const [loading,      setLoading]      = useState(false);
   const [faculty,      setFaculty]      = useState([]);
@@ -226,7 +224,6 @@ export default function Admin() {
     { id:"delete-requests", icon:"🗑️", label:"Delete Requests"  },
     { id:"requests",        icon:"🔄", label:"Requests"         },
     { id:"transactions",    icon:"💰", label:"Transactions"     },
-    { id:"security",        icon:"🛡️", label:"Security"         },
   ];
 
   return (
@@ -1473,100 +1470,6 @@ export default function Admin() {
                 );
               });
             })()}
-          </>
-        )}
-
-        {/* ── SECURITY MONITOR ── */}
-        {tab === "security" && (
-          <>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-              <div className="admin-header" style={{ marginBottom:0 }}>🛡️ Security Monitor</div>
-              <button className="admin-btn admin-btn-blue" style={{ fontSize:11 }}
-                onClick={async () => {
-                  setSecLoading(true);
-                  try {
-                    const { data } = await axios.get(`${API}/admin/security/stats`, { headers: hdrs() });
-                    setSecStats(data);
-                  } catch {}
-                  finally { setSecLoading(false); }
-                }}>
-                {secLoading ? "Loading…" : "🔄 Refresh"}
-              </button>
-            </div>
-
-            {/* Security features overview */}
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))", gap:12, marginBottom:20 }}>
-              {[
-                { icon:"🔒", title:"Helmet Headers",       desc:"15+ HTTP security headers active",                color:"#4ade80" },
-                { icon:"🧹", title:"NoSQL Sanitization",   desc:"MongoDB injection prevention active",             color:"#4ade80" },
-                { icon:"🚦", title:"Rate Limiting",        desc:"200 req/15min general · 20 auth · 5 OTP",        color:"#4ade80" },
-                { icon:"🐢", title:"Speed Limiter",        desc:"Requests slowed after 50/15min per IP",           color:"#4ade80" },
-                { icon:"🔍", title:"Attack Pattern Filter",desc:"Path traversal, SQLi, XSS, code injection blocked",color:"#4ade80" },
-                { icon:"🔑", title:"JWT Algorithm Pin",    desc:"HS256 only — alg:none attack prevented",          color:"#4ade80" },
-                { icon:"🛡️", title:"HPP Protection",       desc:"HTTP parameter pollution blocked",                color:"#4ade80" },
-                { icon:"📏", title:"Payload Guard",        desc:"7MB hard limit — large payload DoS blocked",      color:"#4ade80" },
-                { icon:"🤖", title:"Bot Detection",        desc:"Empty user-agent blocked on auth routes",         color:"#4ade80" },
-                { icon:"📝", title:"Security Audit Log",   desc:"All 4xx/5xx and slow requests logged",            color:"#4ade80" },
-              ].map(s => (
-                <div key={s.title} style={{ padding:"14px 16px", background:"rgba(34,197,94,0.06)", border:"1px solid rgba(34,197,94,0.2)", borderRadius:12 }}>
-                  <div style={{ fontSize:20, marginBottom:6 }}>{s.icon}</div>
-                  <div style={{ fontSize:13, fontWeight:700, color:s.color, marginBottom:3 }}>{s.title}</div>
-                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.45)" }}>{s.desc}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Live stats */}
-            {secStats && (
-              <>
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:10, marginBottom:16 }}>
-                  {[
-                    { label:"Active IPs",   val:secStats.activeIPs,                  color:"#60a5fa" },
-                    { label:"Uptime",       val:`${Math.floor(secStats.uptime/3600)}h ${Math.floor((secStats.uptime%3600)/60)}m`, color:"#4ade80" },
-                    { label:"Memory Used",  val:`${secStats.memoryMB} MB`,            color:"#fbbf24" },
-                    { label:"Node Version", val:secStats.nodeVersion,                 color:"#a78bfa" },
-                  ].map(s => (
-                    <div key={s.label} style={{ padding:"12px 14px", background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:10, textAlign:"center" }}>
-                      <div style={{ fontSize:20, fontWeight:800, color:s.color }}>{s.val}</div>
-                      <div style={{ fontSize:11, color:"rgba(255,255,255,0.35)", marginTop:2 }}>{s.label}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {secStats.topIPs?.length > 0 && (
-                  <div className="admin-card" style={{ padding:0, overflow:"hidden" }}>
-                    <div style={{ padding:"12px 16px", fontWeight:700, fontSize:13, borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
-                      🔥 Top Active IPs (last window)
-                    </div>
-                    <table className="admin-table">
-                      <thead><tr><th>IP Address</th><th>Requests</th><th>Window Start</th><th>Risk</th></tr></thead>
-                      <tbody>
-                        {secStats.topIPs.map((entry, i) => (
-                          <tr key={i}>
-                            <td style={{ fontFamily:"monospace", fontSize:12 }}>{entry.ip}</td>
-                            <td style={{ fontWeight:700, color: entry.count > 20 ? "#f87171" : entry.count > 10 ? "#fbbf24" : "#4ade80" }}>{entry.count}</td>
-                            <td style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{new Date(entry.windowStart).toLocaleTimeString()}</td>
-                            <td>
-                              <span style={{ padding:"2px 8px", borderRadius:6, fontSize:11, fontWeight:600,
-                                background: entry.count > 20 ? "rgba(239,68,68,0.15)" : entry.count > 10 ? "rgba(251,191,36,0.15)" : "rgba(34,197,94,0.15)",
-                                color: entry.count > 20 ? "#f87171" : entry.count > 10 ? "#fbbf24" : "#4ade80" }}>
-                                {entry.count > 20 ? "🚨 HIGH" : entry.count > 10 ? "⚠️ MED" : "✅ LOW"}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </>
-            )}
-
-            {!secStats && !secLoading && (
-              <div style={{ textAlign:"center", padding:40, color:"rgba(255,255,255,0.3)", fontSize:13 }}>
-                Click "🔄 Refresh" to load live security stats
-              </div>
-            )}
           </>
         )}
         </div>

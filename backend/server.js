@@ -21,12 +21,6 @@ const twilio     = require("twilio");
 const https      = require("https");
 const path       = require("path");
 
-/* ─── SECURITY PACKAGES ─── */
-const helmet          = require("helmet");
-const rateLimit       = require("express-rate-limit");
-const mongoSanitize   = require("express-mongo-sanitize");
-const hpp             = require("hpp");
-
 /* ─── FIREBASE TOKEN VERIFY (no service account needed) ─── */
 async function verifyFirebaseToken(idToken) {
   return new Promise((resolve, reject) => {
@@ -70,11 +64,7 @@ const { verifyToken } = require("./middleware/Auth");
 const app    = express();
 const server = http.createServer(app);
 
-const ALLOWED_ORIGINS = process.env.NODE_ENV === "production"
-  ? (process.env.FRONTEND_URL
-      ? [process.env.FRONTEND_URL, "https://campus44.onrender.com", /\.onrender\.com$/]
-      : true)
-  : ["http://localhost:5173", "http://localhost:5174"];
+const ALLOWED_ORIGINS = true; // Open CORS — no origin restriction
 
 const io     = new Server(server, {
   cors: { origin: ALLOWED_ORIGINS, credentials: true },
@@ -161,162 +151,6 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json({ limit: "6mb" }));
-
-/* ══════════════════════════════════════════
-   SECURITY MIDDLEWARE
-══════════════════════════════════════════ */
-
-// 1. HTTP Security Headers (XSS, clickjacking, MIME sniffing, etc.)
-app.use(helmet({
-  contentSecurityPolicy: false, // disabled — frontend uses inline styles
-  crossOriginEmbedderPolicy: false,
-}));
-
-// 2. NoSQL Injection Prevention — strips $ and . from req.body/params/query
-app.use(mongoSanitize({
-  replaceWith: "_",
-  onSanitize: ({ req, key }) => {
-    console.warn(`⚠️  NoSQL injection attempt blocked — key: ${key} IP: ${req.ip}`);
-  },
-}));
-
-// 3. HTTP Parameter Pollution Prevention
-app.use(hpp());
-
-// 4. Rate Limiting — general API
-const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: "Too many requests, please try again later." },
-  skip: (req) => req.path === "/ping", // don't rate-limit health checks
-});
-app.use(generalLimiter);
-
-// 5. Strict Rate Limiting — auth routes (brute force protection)
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // max 20 auth attempts per 15 min per IP
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: "Too many login attempts. Please wait 15 minutes." },
-});
-app.use("/auth/login",       authLimiter);
-app.use("/auth/send-otp",    authLimiter);
-app.use("/auth/verify-otp",  authLimiter);
-app.use("/faculty/login",    authLimiter);
-app.use("/admin/login",      authLimiter);
-
-// 6. OTP brute force — very strict
-const otpLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 5, // only 5 OTP verify attempts per 10 min
-  message: { message: "Too many OTP attempts. Please request a new OTP." },
-});
-app.use("/auth/verify-otp", otpLimiter);
-
-// 7. Security response headers
-app.use((req, res, next) => {
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "DENY");
-  res.setHeader("X-XSS-Protection", "1; mode=block");
-  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(self)");
-  next();
-});
-
-// 8. Request size guard — block suspiciously large payloads
-app.use((req, res, next) => {
-  const contentLength = parseInt(req.headers["content-length"] || "0");
-  if (contentLength > 7 * 1024 * 1024) { // 7MB hard limit
-    return res.status(413).json({ message: "Payload too large" });
-  }
-  next();
-});
-
-/* ══════════════════════════════════════════
-   DDOS & ADVANCED ATTACK PROTECTION
-══════════════════════════════════════════ */
-
-// 9. IP-based connection tracker — block IPs with too many concurrent requests
-const ipRequestCount = new Map();
-const IP_WINDOW_MS   = 1000;  // 1 second window
-const IP_MAX_RPS     = 30;    // max 30 req/sec per IP
-
-app.use((req, res, next) => {
-  const ip = req.ip || req.connection.remoteAddress;
-  const now = Date.now();
-  const entry = ipRequestCount.get(ip) || { count: 0, windowStart: now };
-
-  if (now - entry.windowStart > IP_WINDOW_MS) {
-    // Reset window
-    ipRequestCount.set(ip, { count: 1, windowStart: now });
-  } else {
-    entry.count++;
-    if (entry.count > IP_MAX_RPS) {
-      console.warn(`🚨 DDoS suspect: ${ip} — ${entry.count} req/sec`);
-      return res.status(429).json({ message: "Too many requests. Slow down." });
-    }
-    ipRequestCount.set(ip, entry);
-  }
-  next();
-});
-
-// Clean up IP map every 5 minutes to prevent memory leak
-setInterval(() => {
-  const cutoff = Date.now() - 60000;
-  for (const [ip, entry] of ipRequestCount.entries()) {
-    if (entry.windowStart < cutoff) ipRequestCount.delete(ip);
-  }
-}, 5 * 60 * 1000);
-
-// 11. Suspicious request detection — block common attack patterns
-const BLOCKED_PATTERNS = [
-  /(\.\.[\/\\]|\/etc\/passwd|\/proc\/|\/sys\/)/i,     // Path traversal
-  /(union\s+select|drop\s+table|insert\s+into)/i,     // SQL injection
-  /(<script[\s>]|javascript:|vbscript:|onload\s*=|onerror\s*=)/i, // XSS
-  /(eval\s*\(|exec\s*\(|system\s*\(|passthru\s*\()/i, // Code injection
-  /(base64_decode|gzinflate|str_rot13)/i,             // PHP webshell
-];
-
-app.use((req, res, next) => {
-  // Only check URL and query string — not body (body may have legit $ from MongoDB)
-  const toCheck = [req.url, JSON.stringify(req.query || {})].join(" ");
-
-  for (const pattern of BLOCKED_PATTERNS) {
-    if (pattern.test(toCheck)) {
-      const ip = req.ip || req.connection?.remoteAddress;
-      console.warn(`🚨 Attack pattern blocked: ${pattern} from ${ip} — ${req.method} ${req.url}`);
-      return res.status(400).json({ message: "Bad request" });
-    }
-  }
-  next();
-});
-
-// 12. User-Agent validation — block empty/bot user agents on auth routes
-app.use("/auth", (req, res, next) => {
-  const ua = req.headers["user-agent"] || "";
-  if (!ua || ua.length < 5) {
-    console.warn(`🚨 Suspicious auth request — no user-agent from ${req.ip}`);
-    return res.status(400).json({ message: "Bad request" });
-  }
-  next();
-});
-
-// 13. Request logging for security audit
-app.use((req, res, next) => {
-  const start = Date.now();
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    const ip = req.ip || req.connection.remoteAddress;
-    // Log only suspicious activity (4xx/5xx or slow requests)
-    if (res.statusCode >= 400 || duration > 5000) {
-      console.log(`[${new Date().toISOString()}] ${res.statusCode} ${req.method} ${req.url} — ${ip} — ${duration}ms`);
-    }
-  });
-  next();
-});
 
 /* ── Static file serving removed — frontend deployed separately on Render ── */
 
@@ -494,7 +328,6 @@ async function recordLogin(userId, req, token) {
     if (!user) return;
 
     let sessions = user.activeSessions || [];
-    if (sessions.length >= 2) sessions = sessions.slice(-1);
     sessions.push(entry);
 
     user.activeSessions = sessions;
@@ -561,21 +394,6 @@ app.get("/", (req, res) => res.send("🚀 CampUs Backend Running"));
 
 /* ── HEALTH CHECK — keeps free tier awake ── */
 app.get("/ping", (req, res) => res.json({ ok: true, t: Date.now() }));
-
-/* ── SECURITY MONITOR — admin only ── */
-app.get("/admin/security/stats", verifyToken, adminOnly, (req, res) => {
-  const topIPs = Array.from(ipRequestCount.entries())
-    .sort((a, b) => b[1].count - a[1].count)
-    .slice(0, 20)
-    .map(([ip, data]) => ({ ip, ...data }));
-  res.json({
-    activeIPs: ipRequestCount.size,
-    topIPs,
-    uptime: process.uptime(),
-    memoryMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-    nodeVersion: process.version,
-  });
-});
 
 /* ── REGISTER ── */
 app.post("/auth/register", async (req, res) => {
@@ -817,14 +635,8 @@ app.post("/auth/login", async (req, res) => {
     if (!user) return res.status(400).json({ message: "User not found" });
     if (!user.password) return res.status(400).json({ message: "This account uses OTP login. Use the OTP tab." });
 
-    // Block login if email not verified
-    if (!user.emailVerified && user.role !== "admin") {
-      return res.status(403).json({
-        message: "Email not verified. Check your inbox for the verification code.",
-        code: "EMAIL_UNVERIFIED",
-        email: user.email,
-      });
-    }
+    // Block login if email not verified — REMOVED
+    // if (!user.emailVerified && user.role !== "admin") { ... }
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(400).json({ message: "Incorrect password" });
@@ -1122,20 +934,9 @@ function adminOnly(req, res, next) {
   next();
 }
 
-/* block unverified students from key actions */
+/* block unverified students from key actions — REMOVED, all users can proceed */
 async function requireVerified(req, res, next) {
-  try {
-    const user = await User.findById(req.user.id).select("idVerified emailVerified role");
-    if (!user) return res.status(401).json({ message: "User not found" });
-    if (user.role === "admin") return next();
-    if (!user.emailVerified) {
-      return res.status(403).json({ message: "Email verification required", code: "EMAIL_UNVERIFIED" });
-    }
-    if (user.idVerified !== "verified") {
-      return res.status(403).json({ message: "ID verification required", code: "UNVERIFIED", idVerified: user.idVerified || "none" });
-    }
-    next();
-  } catch { res.status(500).json({ message: "Server error" }); }
+  next();
 }
 
 /* ── ADMIN LOGIN (no token needed) ── */
