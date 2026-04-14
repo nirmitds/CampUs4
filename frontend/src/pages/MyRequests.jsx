@@ -13,7 +13,8 @@ export default function MyRequests() {
   const navigate = useNavigate();
   const [owned,    setOwned]    = useState([]);
   const [accepted, setAccepted] = useState([]);
-  const [tab,      setTab]      = useState("owned"); // "owned" | "accepted"
+  const [tab,      setTab]      = useState("owned");
+  const [toggling, setToggling] = useState(null); // id being toggled
 
   useEffect(() => {
     axios.get(`${API}/exchange/my-requests`, { headers: headers() })
@@ -28,6 +29,24 @@ export default function MyRequests() {
       setOwned(prev => prev.filter(r => r._id !== id));
     } catch (e) { alert(e.response?.data?.message || "Error"); }
   };
+
+  const handleVisibility = async (r) => {
+    const next = r.visibility === "university" ? "nearby"
+               : r.visibility === "nearby"     ? "all"
+               : "university";
+    setToggling(r._id);
+    try {
+      const { data } = await axios.put(`${API}/exchange/${r._id}/visibility`, { visibility: next }, { headers: headers() });
+      setOwned(prev => prev.map(x => x._id === r._id ? { ...x, visibility: data.visibility } : x));
+    } catch (e) { alert(e.response?.data?.message || "Failed"); }
+    finally { setToggling(null); }
+  };
+
+  const visLabel = (v) => ({
+    university: { icon:"🏫", label:"My University", next:"Expand to Nearby", color:"rgba(59,130,246,0.2)", border:"rgba(59,130,246,0.35)", text:"#60a5fa" },
+    nearby:     { icon:"📍", label:"Nearby Univ.",  next:"Send to All",      color:"rgba(34,197,94,0.15)", border:"rgba(34,197,94,0.35)",  text:"#4ade80" },
+    all:        { icon:"🌍", label:"Everyone",      next:"Limit to My Univ.",color:"rgba(245,158,11,0.15)",border:"rgba(245,158,11,0.35)", text:"#fbbf24" },
+  }[v || "university"]);
 
   const list = tab === "owned" ? owned : accepted;
 
@@ -96,6 +115,18 @@ export default function MyRequests() {
                       💬 Open Chat
                     </button>
                   )}
+                  {tab === "owned" && r.status === "Open" && (() => {
+                    const vis = visLabel(r.visibility);
+                    return (
+                      <button
+                        disabled={toggling === r._id}
+                        onClick={() => handleVisibility(r)}
+                        style={{ padding:"6px 12px", borderRadius:9, border:`1px solid ${vis.border}`, background:vis.color, color:vis.text, fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"Outfit,sans-serif", display:"flex", alignItems:"center", gap:6 }}
+                        title={`Currently visible to: ${vis.label}. Click to: ${vis.next}`}>
+                        {toggling === r._id ? "…" : <>{vis.icon} {vis.label}</>}
+                      </button>
+                    );
+                  })()}
                   {tab === "owned" && (
                     <button className="btn btn-danger" onClick={() => handleDelete(r._id)}>Delete</button>
                   )}

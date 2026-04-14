@@ -1317,6 +1317,22 @@ app.delete("/exchange/:id", verifyToken, async (req, res) => {
   } catch (err) { res.status(500).json({ message: "Server error" }); }
 });
 
+/* update request visibility (university | nearby | all) */
+app.put("/exchange/:id/visibility", verifyToken, async (req, res) => {
+  try {
+    const { visibility } = req.body;
+    if (!["university", "nearby", "all"].includes(visibility)) {
+      return res.status(400).json({ message: "Invalid visibility" });
+    }
+    const r = await Request.findById(req.params.id);
+    if (!r) return res.status(404).json({ message: "Not found" });
+    if (r.ownerUsername !== req.user.username) return res.status(403).json({ message: "Not allowed" });
+    r.visibility = visibility;
+    await r.save();
+    res.json(r);
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
 /* ══════════════════════════════════════════════════════
    CHAT ROUTES  (only owner + acceptor can access)
 ══════════════════════════════════════════════════════ */

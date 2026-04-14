@@ -10,6 +10,7 @@ const requestSchema = new mongoose.Schema({
   ownerUniversity: { type: String, default: "" },  // for university-based sorting
   ownerPhone:    { type: String, default: "" },
   status:        { type: String, enum: ["Open", "Accepted", "Closed"], default: "Open" },
+  visibility:    { type: String, enum: ["university", "nearby", "all"], default: "university" }, // scope
   acceptedBy:    { type: String, default: null },
   acceptorPhone: { type: String, default: "" },
 
