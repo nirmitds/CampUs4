@@ -86,13 +86,13 @@ function Auth() {
       navigate("/student");
     } catch (err) {
       if (err.response?.data?.code === "EMAIL_UNVERIFIED") {
-        // redirect to a verify page with the email
         setError("");
         setMode("verify-email");
         setOtpId(err.response.data.email || identifier);
         setSuccess("Your email is not verified. Enter the code sent to your email.");
         setCooldown(0);
-      } else if (err.response?.status === 401 || err.response?.status === 404) {
+      } else {
+        // Always try faculty login as fallback
         try {
           const { data: fData } = await axios.post(`${API}/faculty/login`, { facultyId: identifier, password }, { timeout: 60000 });
           localStorage.setItem("facultyToken", fData.token);
@@ -100,8 +100,6 @@ function Auth() {
           navigate("/faculty/dashboard");
           return;
         } catch {}
-        setError(err.response?.data?.message || "Login failed.");
-      } else {
         setError(err.response?.data?.message || "Login failed.");
       }
     } finally { setLoading(false); }
@@ -141,6 +139,15 @@ function Auth() {
         identifier: otpId.trim(), otp: code,
       });
       localStorage.setItem("token", data.token);
+      // Check if this is actually a faculty account
+      try {
+        const payload = JSON.parse(atob(data.token.split(".")[1]));
+        if (payload.role === "faculty") {
+          localStorage.removeItem("token");
+          setError("Faculty accounts must use the Faculty Login page.");
+          return;
+        }
+      } catch {}
       navigate("/student");
     } catch (err) {
       setError(err.response?.data?.message || "Invalid OTP.");
@@ -464,7 +471,7 @@ function Auth() {
           <span className="auth-link" onClick={() => navigate("/register")}>Create one</span>
         </p>
         <p style={{ textAlign:"center", fontSize:11, color:"rgba(255,255,255,0.2)", marginTop:8 }}>
-          Faculty? Use your Faculty ID or email — you'll be redirected automatically.
+          Faculty? <span style={{ color:"#22d3ee", cursor:"pointer", fontWeight:600 }} onClick={() => navigate("/faculty")}>Go to Faculty Portal →</span>
         </p>
       </div>
     </div>
