@@ -238,23 +238,8 @@ app.use((req, res, next) => {
 /* ══════════════════════════════════════════
    DDOS & ADVANCED ATTACK PROTECTION
 ══════════════════════════════════════════ */
-const slowDown = require("express-slow-down");
 
-// 9. Speed limiter — slows down repeat requests (DDoS mitigation)
-// After 50 requests in 15min, each subsequent request is delayed by 500ms (max 20s)
-const speedLimiter = slowDown({
-  windowMs: 15 * 60 * 1000,
-  delayAfter: 50,
-  delayMs: (used, req) => {
-    const delayAfter = req.slowDown.limit;
-    return (used - delayAfter) * 500; // 500ms per extra request
-  },
-  maxDelayMs: 20000, // max 20s delay
-  skip: (req) => req.path === "/ping",
-});
-app.use(speedLimiter);
-
-// 10. IP-based connection tracker — block IPs with too many concurrent requests
+// 9. IP-based connection tracker — block IPs with too many concurrent requests
 const ipRequestCount = new Map();
 const IP_WINDOW_MS   = 1000;  // 1 second window
 const IP_MAX_RPS     = 30;    // max 30 req/sec per IP
@@ -288,25 +273,20 @@ setInterval(() => {
 
 // 11. Suspicious request detection — block common attack patterns
 const BLOCKED_PATTERNS = [
-  /(\.\.|\/etc\/passwd|\/proc\/|\/sys\/)/i,          // Path traversal
-  /(union\s+select|drop\s+table|insert\s+into)/i,    // SQL injection
-  /(<script|javascript:|vbscript:|onload=|onerror=)/i, // XSS
-  /(\$where|\$regex|\$gt|\$lt|\$ne|\$in|\$nin)/,     // NoSQL injection (extra layer)
-  /(eval\(|exec\(|system\(|passthru\()/i,            // Code injection
-  /(base64_decode|base64_encode|gzinflate)/i,        // PHP webshell patterns
+  /(\.\.[\/\\]|\/etc\/passwd|\/proc\/|\/sys\/)/i,     // Path traversal
+  /(union\s+select|drop\s+table|insert\s+into)/i,     // SQL injection
+  /(<script[\s>]|javascript:|vbscript:|onload\s*=|onerror\s*=)/i, // XSS
+  /(eval\s*\(|exec\s*\(|system\s*\(|passthru\s*\()/i, // Code injection
+  /(base64_decode|gzinflate|str_rot13)/i,             // PHP webshell
 ];
 
 app.use((req, res, next) => {
-  const toCheck = [
-    req.url,
-    JSON.stringify(req.body || {}),
-    JSON.stringify(req.query || {}),
-    JSON.stringify(req.params || {}),
-  ].join(" ");
+  // Only check URL and query string — not body (body may have legit $ from MongoDB)
+  const toCheck = [req.url, JSON.stringify(req.query || {})].join(" ");
 
   for (const pattern of BLOCKED_PATTERNS) {
     if (pattern.test(toCheck)) {
-      const ip = req.ip || req.connection.remoteAddress;
+      const ip = req.ip || req.connection?.remoteAddress;
       console.warn(`🚨 Attack pattern blocked: ${pattern} from ${ip} — ${req.method} ${req.url}`);
       return res.status(400).json({ message: "Bad request" });
     }
