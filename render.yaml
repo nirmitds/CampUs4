@@ -4,7 +4,7 @@ services:
     name: campus-backend
     runtime: node
     rootDir: backend
-    buildCommand: npm ci
+    buildCommand: npm install
     startCommand: node server.js
     plan: free
     envVars:
@@ -33,18 +33,18 @@ services:
       - key: QR_IMAGE_URL
         sync: false
       - key: FRONTEND_URL
-        sync: false   # set to your Render static site URL
+        sync: false
 
   # ── Frontend Static Site ────────────────────────────────────────
   - type: web
     name: campus-frontend
     runtime: static
     rootDir: frontend
-    buildCommand: npm ci && npm run build
+    buildCommand: npm install && npm run build
     staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
-        sync: false   # set to your backend URL e.g. https://campus-backend.onrender.com
+        sync: false
     routes:
       - type: rewrite
         source: /*
