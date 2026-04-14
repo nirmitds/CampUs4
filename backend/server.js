@@ -2608,21 +2608,31 @@ app.get("/faculty/students", verifyFaculty, async (req, res) => {
     const faculty = await Faculty.findById(req.faculty.id).select("university classes");
     if (!faculty) return res.status(404).json({ message: "Faculty not found" });
 
-    const filter = { university: faculty.university };
+    // Build filter — match students by course/branch/year/semester of faculty's classes
+    // No university filter (admin may assign students from any university)
+    let filter = {};
     if (faculty.classes?.length > 0) {
-      // match students in any of the faculty's assigned classes
       filter.$or = faculty.classes.map(cls => {
         const cond = {};
         if (cls.course)   cond.course   = cls.course;
         if (cls.branch)   cond.branch   = cls.branch;
         if (cls.year)     cond.year     = cls.year;
         if (cls.semester) cond.semester = cls.semester;
-        return cond;
-      });
+        return Object.keys(cond).length > 0 ? cond : null;
+      }).filter(Boolean);
+    }
+
+    // If no classes defined, fall back to university match
+    if (!filter.$or || filter.$or.length === 0) {
+      if (faculty.university) {
+        filter.university = { $regex: new RegExp(faculty.university.trim(), "i") };
+      } else {
+        return res.json([]); // no way to filter
+      }
     }
 
     const students = await User.find(filter)
-      .select("name username email rollNo course branch year semester avatar idVerified")
+      .select("name username email rollNo course branch year semester avatar idVerified university")
       .sort({ name: 1 })
       .limit(500);
     res.json(students);

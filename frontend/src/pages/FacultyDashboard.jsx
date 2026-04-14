@@ -109,11 +109,16 @@ export default function FacultyDashboard() {
 
     axios.get(`${API}/faculty/me`, { headers: fhdrs() }).then(r => {
       setFaculty(r.data);
-      // load students matching faculty's university + classes
-      axios.get(`${API}/faculty/students`, { headers: fhdrs() }).then(s => setStudents(s.data)).catch(() => {});
+      loadStudents();
     }).catch(() => navigate("/faculty"));
     loadContent();
   }, []);
+
+  const loadStudents = () => {
+    axios.get(`${API}/faculty/students`, { headers: fhdrs() })
+      .then(s => setStudents(s.data))
+      .catch(() => {});
+  };
 
   const loadContent = async (type) => {
     try {
@@ -206,7 +211,7 @@ export default function FacultyDashboard() {
               {counts[t.id] > 0 && <span style={{ marginLeft:"auto", background:"rgba(6,182,212,0.2)", color:"#22d3ee", borderRadius:8, padding:"1px 6px", fontSize:10, fontWeight:800 }}>{counts[t.id]}</span>}
             </button>
           ))}
-          <button className={`fac-nav-item ${tab==="students"?"active":""}`} onClick={() => { setTab("students"); setSideOpen(false); }}>
+          <button className={`fac-nav-item ${tab==="students"?"active":""}`} onClick={() => { setTab("students"); setSideOpen(false); loadStudents(); }}>
             👥 Students
             {students.length > 0 && <span style={{ marginLeft:"auto", background:"rgba(139,92,246,0.2)", color:"#a78bfa", borderRadius:8, padding:"1px 6px", fontSize:10, fontWeight:800 }}>{students.length}</span>}
           </button>
@@ -459,11 +464,20 @@ export default function FacultyDashboard() {
         {/* students tab */}
         {tab === "students" && (
           <>
-            <div className="fac-header">👥 My Students ({students.length})</div>
+            <div className="fac-header" style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <span>👥 My Students ({students.length})</span>
+              <button onClick={loadStudents} style={{ padding:"5px 12px", borderRadius:8, background:"rgba(139,92,246,0.15)", border:"1px solid rgba(139,92,246,0.3)", color:"#a78bfa", fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"Outfit,sans-serif" }}>
+                🔄 Refresh
+              </button>
+            </div>
             {students.length === 0 ? (
               <div className="fac-card" style={{ textAlign:"center", padding:48, color:"rgba(255,255,255,0.3)" }}>
                 <div style={{ fontSize:40, marginBottom:12 }}>👥</div>
-                No students found matching your assigned classes.
+                <div style={{ marginBottom:8 }}>No students found matching your assigned classes.</div>
+                <div style={{ fontSize:12, color:"rgba(255,255,255,0.2)" }}>Ask your admin to assign students to your classes.</div>
+                <button onClick={loadStudents} style={{ marginTop:16, padding:"8px 18px", borderRadius:10, background:"rgba(139,92,246,0.15)", border:"1px solid rgba(139,92,246,0.3)", color:"#a78bfa", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"Outfit,sans-serif" }}>
+                  🔄 Refresh
+                </button>
               </div>
             ) : (
               <>
