@@ -542,12 +542,15 @@ export default function Admin() {
         {/* ── ASSIGN STUDENTS MODAL ── */}
         {assignFac && (() => {
           const cls = assignFac._selectedClass !== undefined ? assignFac.classes[assignFac._selectedClass] : null;
-          const sameUniv = users.filter(u => 
-            u.role !== "admin" && 
-            (!assignFac.university || 
-              u.university?.trim().toLowerCase() === assignFac.university?.trim().toLowerCase()
-            )
-          );
+          const sameUniv = users.filter(u => {
+            if (u.role === "admin") return false;
+            if (!assignFac.university) return true; // no university set on faculty — show all
+            const facUni = assignFac.university.trim().toLowerCase();
+            const stuUni = (u.university || "").trim().toLowerCase();
+            if (!stuUni) return true; // student has no university set — show them
+            // partial match either way
+            return stuUni.includes(facUni) || facUni.includes(stuUni);
+          });
           const isAssigned = u => cls && u.course === cls.course && u.branch === cls.branch && u.year === cls.year && u.semester === cls.semester;
           const searched = sameUniv.filter(u => !assignSearch ||
             u.name?.toLowerCase().includes(assignSearch.toLowerCase()) ||
