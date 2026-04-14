@@ -18,7 +18,6 @@ function myUniversity() {
   try { return JSON.parse(atob(token().split(".")[1])).university || ""; } catch { return null; }
 }
 
-/* ── group requests by owner ── */
 function groupByUser(requests) {
   const map = new Map();
   for (const r of requests) {
@@ -29,26 +28,20 @@ function groupByUser(requests) {
     username,
     university: reqs[0].ownerUniversity || "",
     requests: reqs,
-    latest: reqs[0], // already sorted by createdAt desc
+    latest: reqs[0],
     hasOpen: reqs.some(r => r.status === "Open"),
     hasAccepted: reqs.some(r => r.status === "Accepted"),
   }));
 }
 
-/* ── user group card ── */
 function UserGroupCard({ group, me, myUni, onAccept, onDelete, onChat, onVisibility }) {
   const [expanded, setExpanded] = useState(group.requests.length === 1);
   const sameUni = myUni && group.university && group.university.toLowerCase() === myUni.toLowerCase();
   const isMyCard = group.username === me;
   const latest = group.latest;
 
-  const borderColor = isMyCard ? "rgba(139,92,246,0.4)"
-    : sameUni ? "rgba(59,130,246,0.35)"
-    : "rgba(255,255,255,0.07)";
-
-  const bgColor = isMyCard ? "rgba(139,92,246,0.06)"
-    : sameUni ? "rgba(59,130,246,0.05)"
-    : "rgba(255,255,255,0.04)";
+  const borderColor = isMyCard ? "rgba(139,92,246,0.4)" : sameUni ? "rgba(59,130,246,0.35)" : "rgba(255,255,255,0.07)";
+  const bgColor = isMyCard ? "rgba(139,92,246,0.06)" : sameUni ? "rgba(59,130,246,0.05)" : "rgba(255,255,255,0.04)";
 
   const visInfo = (v) => ({
     university: { icon:"🏫", label:"My University", color:"rgba(59,130,246,0.15)", border:"rgba(59,130,246,0.3)", text:"#60a5fa" },
@@ -58,30 +51,50 @@ function UserGroupCard({ group, me, myUni, onAccept, onDelete, onChat, onVisibil
 
   const cycleVis = (v) => v === "university" ? "nearby" : v === "nearby" ? "all" : "university";
 
-  return (
-    <div style={{
-      background: bgColor,
-      border: `1px solid ${borderColor}`,
-      borderRadius: 16,
-      overflow: "hidden",
-      position: "relative",
-      transition: "all 0.2s",
-    }}>
-      {/* top accent line */}
-      {(sameUni || isMyCard) && (
-        <div style={{ height: 2, background: isMyCard ? "linear-gradient(90deg,#8b5cf6,#3b82f6)" : "linear-gradient(90deg,#3b82f6,#8b5cf6)" }} />
-      )}
+  const RequestActions = ({ r }) => {
+    const isOwner    = r.ownerUsername === me;
+    const isAcceptor = r.acceptedBy === me;
+    const vis        = visInfo(r.visibility);
+    return (
+      <div style={{ display:"flex", gap:6, flexWrap:"wrap", justifyContent:"flex-end", flexShrink:0, alignItems:"center" }}>
+        {!isOwner && (
+          <span style={{ fontSize:10, padding:"2px 7px", borderRadius:6, background:vis.color, border:`1px solid ${vis.border}`, color:vis.text }}>
+            {vis.icon} {vis.label}
+          </span>
+        )}
+        {r.status==="Open" && !isOwner && (
+          <button className="btn btn-success" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onAccept(r)}>
+            Accept{r.coins>0?` · 💰 ${r.coins}`:""}
+          </button>
+        )}
+        {r.status==="Accepted" && (isOwner||isAcceptor) && (
+          <button className="btn btn-primary" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onChat(r._id)}>💬 Chat</button>
+        )}
+        {isOwner && r.status==="Open" && (
+          <button
+            style={{ fontSize:11, padding:"5px 10px", borderRadius:8, border:`1px solid ${vis.border}`, background:vis.color, color:vis.text, cursor:"pointer", fontFamily:"Outfit,sans-serif", fontWeight:600 }}
+            onClick={() => onVisibility(r._id, cycleVis(r.visibility))}
+            title="Change who can see this request">
+            {vis.icon} {vis.label}
+          </button>
+        )}
+        {isOwner && (
+          <button className="btn btn-danger" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onDelete(r._id)}>Delete</button>
+        )}
+      </div>
+    );
+  };
 
-      {/* user header row — always visible */}
-      <div
-        style={{ padding:"14px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:12 }}
-        onClick={() => group.requests.length > 1 && setExpanded(e => !e)}
-      >
-        {/* avatar */}
+  return (
+    <div style={{ background:bgColor, border:`1px solid ${borderColor}`, borderRadius:16, overflow:"hidden", position:"relative", transition:"all 0.2s" }}>
+      {(sameUni || isMyCard) && (
+        <div style={{ height:2, background: isMyCard ? "linear-gradient(90deg,#8b5cf6,#3b82f6)" : "linear-gradient(90deg,#3b82f6,#8b5cf6)" }} />
+      )}
+      <div style={{ padding:"14px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:12 }}
+        onClick={() => group.requests.length > 1 && setExpanded(e => !e)}>
         <div style={{ width:40, height:40, borderRadius:"50%", background:"linear-gradient(135deg,#3b82f6,#8b5cf6)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:800, color:"#fff", flexShrink:0 }}>
           {group.username[0].toUpperCase()}
         </div>
-
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
             <span style={{ fontWeight:700, fontSize:14 }}>@{group.username}</span>
@@ -90,12 +103,9 @@ function UserGroupCard({ group, me, myUni, onAccept, onDelete, onChat, onVisibil
             {group.university && <span style={{ fontSize:11, color:"rgba(255,255,255,0.35)" }}>{group.university}</span>}
           </div>
           <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-            {latest.title}
-            {group.requests.length > 1 && ` +${group.requests.length - 1} more`}
+            {latest.title}{group.requests.length > 1 && ` +${group.requests.length - 1} more`}
           </div>
         </div>
-
-        {/* status badges + expand toggle */}
         <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
           {group.hasOpen && <span className="badge badge-green" style={{ fontSize:10 }}>Open</span>}
           {group.hasAccepted && <span className="badge badge-yellow" style={{ fontSize:10 }}>Accepted</span>}
@@ -105,24 +115,13 @@ function UserGroupCard({ group, me, myUni, onAccept, onDelete, onChat, onVisibil
         </div>
       </div>
 
-      {/* requests list */}
       {expanded && (
         <div style={{ borderTop:"1px solid rgba(255,255,255,0.07)" }}>
           {group.requests.map((r, idx) => {
-            const isOwner    = r.ownerUsername === me;
-            const isAcceptor = r.acceptedBy === me;
-            const isLatest   = idx === 0;
-            const vis        = visInfo(r.visibility);
+            const vis = visInfo(r.visibility);
             return (
-              <div key={r._id} style={{
-                padding:"12px 16px",
-                borderBottom: idx < group.requests.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
-                background: isLatest ? "rgba(255,255,255,0.03)" : "transparent",
-                position:"relative",
-              }}>
-                {isLatest && (
-                  <div style={{ position:"absolute", left:0, top:"15%", bottom:"15%", width:2, borderRadius:"0 2px 2px 0", background:"linear-gradient(180deg,#3b82f6,#8b5cf6)" }} />
-                )}
+              <div key={r._id} style={{ padding:"12px 16px", borderBottom: idx < group.requests.length-1 ? "1px solid rgba(255,255,255,0.05)" : "none", background: idx===0 ? "rgba(255,255,255,0.03)" : "transparent", position:"relative" }}>
+                {idx===0 && <div style={{ position:"absolute", left:0, top:"15%", bottom:"15%", width:2, borderRadius:"0 2px 2px 0", background:"linear-gradient(180deg,#3b82f6,#8b5cf6)" }} />}
                 <div style={{ display:"flex", gap:8, alignItems:"flex-start", flexWrap:"wrap" }}>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:6 }}>
@@ -130,39 +129,14 @@ function UserGroupCard({ group, me, myUni, onAccept, onDelete, onChat, onVisibil
                       <span className="badge badge-purple" style={{ fontSize:11 }}>{r.category}</span>
                       <span className={`badge ${r.status==="Open"?"badge-green":"badge-yellow"}`} style={{ fontSize:11 }}>{r.status}</span>
                       {r.coins > 0 && <span className="badge" style={{ background:"rgba(251,191,36,0.15)", color:"#fbbf24", fontSize:11 }}>💰 {r.coins}</span>}
-                      {isLatest && <span style={{ fontSize:10, color:"rgba(255,255,255,0.3)", alignSelf:"center" }}>Latest</span>}
-                      {/* visibility badge */}
-                      <span style={{ fontSize:10, padding:"2px 7px", borderRadius:6, background:vis.color, border:`1px solid ${vis.border}`, color:vis.text }}>
-                        {vis.icon} {vis.label}
-                      </span>
+                      {idx===0 && <span style={{ fontSize:10, color:"rgba(255,255,255,0.3)", alignSelf:"center" }}>Latest</span>}
+                      <span style={{ fontSize:10, padding:"2px 7px", borderRadius:6, background:vis.color, border:`1px solid ${vis.border}`, color:vis.text }}>{vis.icon} {vis.label}</span>
                     </div>
                     <div style={{ fontWeight:700, fontSize:14, marginBottom:3 }}>{r.title}</div>
                     <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginBottom:4 }}>{r.description}</div>
-                    {r.acceptedBy && (
-                      <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)" }}>Accepted by @{r.acceptedBy}</div>
-                    )}
+                    {r.acceptedBy && <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)" }}>Accepted by @{r.acceptedBy}</div>}
                   </div>
-                  <div style={{ display:"flex", gap:6, flexWrap:"wrap", justifyContent:"flex-end", flexShrink:0 }}>
-                    {r.status==="Open" && !isOwner && (
-                      <button className="btn btn-success" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onAccept(r)}>
-                        Accept{r.coins>0?` · 💰 ${r.coins}`:""}
-                      </button>
-                    )}
-                    {r.status==="Accepted" && (isOwner||isAcceptor) && (
-                      <button className="btn btn-primary" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onChat(r._id)}>💬 Chat</button>
-                    )}
-                    {isOwner && r.status==="Open" && (
-                      <button
-                        style={{ fontSize:11, padding:"5px 10px", borderRadius:8, border:`1px solid ${vis.border}`, background:vis.color, color:vis.text, cursor:"pointer", fontFamily:"Outfit,sans-serif", fontWeight:600 }}
-                        onClick={() => onVisibility(r._id, cycleVis(r.visibility))}
-                        title="Change who can see this request">
-                        {vis.icon} {vis.label}
-                      </button>
-                    )}
-                    {isOwner && (
-                      <button className="btn btn-danger" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onDelete(r._id)}>Delete</button>
-                    )}
-                  </div>
+                  <RequestActions r={r} />
                 </div>
               </div>
             );
@@ -170,184 +144,15 @@ function UserGroupCard({ group, me, myUni, onAccept, onDelete, onChat, onVisibil
         </div>
       )}
 
-      {/* if collapsed and single request, show inline actions */}
-      {!expanded && group.requests.length === 1 && (() => {
-        const r = latest;
-        const isOwner    = r.ownerUsername === me;
-        const isAcceptor = r.acceptedBy === me;
-        const vis        = visInfo(r.visibility);
-        return (
-          <div style={{ padding:"0 16px 12px", display:"flex", gap:6, justifyContent:"flex-end", flexWrap:"wrap", alignItems:"center" }}>
-            {/* visibility badge/toggle for owner */}
-            {isOwner && r.status==="Open" && (
-              <button
-                style={{ fontSize:11, padding:"5px 10px", borderRadius:8, border:`1px solid ${vis.border}`, background:vis.color, color:vis.text, cursor:"pointer", fontFamily:"Outfit,sans-serif", fontWeight:600 }}
-                onClick={() => onVisibility(r._id, cycleVis(r.visibility))}
-                title="Change who can see this request">
-                {vis.icon} {vis.label}
-              </button>
-            )}
-            {!isOwner && (
-              <span style={{ fontSize:10, padding:"2px 7px", borderRadius:6, background:vis.color, border:`1px solid ${vis.border}`, color:vis.text }}>
-                {vis.icon} {vis.label}
-              </span>
-            )}
-            {r.status==="Open" && !isOwner && (
-              <button className="btn btn-success" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onAccept(r)}>
-                Accept{r.coins>0?` · 💰 ${r.coins}`:""}
-              </button>
-            )}
-            {r.status==="Accepted" && (isOwner||isAcceptor) && (
-              <button className="btn btn-primary" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onChat(r._id)}>💬 Chat</button>
-            )}
-            {isOwner && (
-              <button className="btn btn-danger" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onDelete(r._id)}>Delete</button>
-            )}
-          </div>
-        );
-      })()}
-    </div>
-  );
-}
-  const [expanded, setExpanded] = useState(group.requests.length === 1);
-  const sameUni = myUni && group.university && group.university.toLowerCase() === myUni.toLowerCase();
-  const isMyCard = group.username === me;
-  const latest = group.latest;
-
-  const borderColor = isMyCard ? "rgba(139,92,246,0.4)"
-    : sameUni ? "rgba(59,130,246,0.35)"
-    : "rgba(255,255,255,0.07)";
-
-  const bgColor = isMyCard ? "rgba(139,92,246,0.06)"
-    : sameUni ? "rgba(59,130,246,0.05)"
-    : "rgba(255,255,255,0.04)";
-
-  return (
-    <div style={{
-      background: bgColor,
-      border: `1px solid ${borderColor}`,
-      borderRadius: 16,
-      overflow: "hidden",
-      position: "relative",
-      transition: "all 0.2s",
-    }}>
-      {/* top accent line */}
-      {(sameUni || isMyCard) && (
-        <div style={{ height: 2, background: isMyCard ? "linear-gradient(90deg,#8b5cf6,#3b82f6)" : "linear-gradient(90deg,#3b82f6,#8b5cf6)" }} />
-      )}
-
-      {/* user header row — always visible */}
-      <div
-        style={{ padding:"14px 16px", cursor:"pointer", display:"flex", alignItems:"center", gap:12 }}
-        onClick={() => group.requests.length > 1 && setExpanded(e => !e)}
-      >
-        {/* avatar */}
-        <div style={{ width:40, height:40, borderRadius:"50%", background:"linear-gradient(135deg,#3b82f6,#8b5cf6)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:800, color:"#fff", flexShrink:0 }}>
-          {group.username[0].toUpperCase()}
-        </div>
-
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-            <span style={{ fontWeight:700, fontSize:14 }}>@{group.username}</span>
-            {isMyCard && <span className="badge badge-purple" style={{ fontSize:10 }}>You</span>}
-            {sameUni && !isMyCard && <span className="badge badge-blue" style={{ fontSize:10 }}>🏫 Same Uni</span>}
-            {group.university && <span style={{ fontSize:11, color:"rgba(255,255,255,0.35)" }}>{group.university}</span>}
-          </div>
-          {/* latest request preview */}
-          <div style={{ fontSize:12, color:"rgba(255,255,255,0.5)", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-            {latest.title}
-            {group.requests.length > 1 && ` +${group.requests.length - 1} more`}
-          </div>
-        </div>
-
-        {/* status badges + expand toggle */}
-        <div style={{ display:"flex", gap:6, alignItems:"center", flexShrink:0 }}>
-          {group.hasOpen && <span className="badge badge-green" style={{ fontSize:10 }}>Open</span>}
-          {group.hasAccepted && <span className="badge badge-yellow" style={{ fontSize:10 }}>Accepted</span>}
-          {group.requests.length > 1 && (
-            <span style={{ fontSize:18, color:"rgba(255,255,255,0.4)", transition:"transform 0.2s", display:"inline-block", transform: expanded ? "rotate(180deg)" : "none" }}>⌄</span>
-          )}
-        </div>
-      </div>
-
-      {/* requests list */}
-      {expanded && (
-        <div style={{ borderTop:"1px solid rgba(255,255,255,0.07)" }}>
-          {group.requests.map((r, idx) => {
-            const isOwner    = r.ownerUsername === me;
-            const isAcceptor = r.acceptedBy === me;
-            const isLatest   = idx === 0;
-            return (
-              <div key={r._id} style={{
-                padding:"12px 16px",
-                borderBottom: idx < group.requests.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
-                background: isLatest ? "rgba(255,255,255,0.03)" : "transparent",
-                position:"relative",
-              }}>
-                {isLatest && (
-                  <div style={{ position:"absolute", left:0, top:"15%", bottom:"15%", width:2, borderRadius:"0 2px 2px 0", background:"linear-gradient(180deg,#3b82f6,#8b5cf6)" }} />
-                )}
-                <div style={{ display:"flex", gap:8, alignItems:"flex-start", flexWrap:"wrap" }}>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:6 }}>
-                      <span className="badge badge-blue" style={{ fontSize:11 }}>{r.type}</span>
-                      <span className="badge badge-purple" style={{ fontSize:11 }}>{r.category}</span>
-                      <span className={`badge ${r.status==="Open"?"badge-green":"badge-yellow"}`} style={{ fontSize:11 }}>{r.status}</span>
-                      {r.coins > 0 && <span className="badge" style={{ background:"rgba(251,191,36,0.15)", color:"#fbbf24", fontSize:11 }}>💰 {r.coins}</span>}
-                      {isLatest && <span style={{ fontSize:10, color:"rgba(255,255,255,0.3)", alignSelf:"center" }}>Latest</span>}
-                    </div>
-                    <div style={{ fontWeight:700, fontSize:14, marginBottom:3 }}>{r.title}</div>
-                    <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginBottom:4 }}>{r.description}</div>
-                    {r.acceptedBy && (
-                      <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)" }}>Accepted by @{r.acceptedBy}</div>
-                    )}
-                  </div>
-                  <div style={{ display:"flex", gap:6, flexWrap:"wrap", justifyContent:"flex-end", flexShrink:0 }}>
-                    {r.status==="Open" && !isOwner && (
-                      <button className="btn btn-success" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onAccept(r)}>
-                        Accept{r.coins>0?` · 💰 ${r.coins}`:""}
-                      </button>
-                    )}
-                    {r.status==="Accepted" && (isOwner||isAcceptor) && (
-                      <button className="btn btn-primary" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onChat(r._id)}>💬 Chat</button>
-                    )}
-                    {isOwner && (
-                      <button className="btn btn-danger" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onDelete(r._id)}>Delete</button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+      {!expanded && group.requests.length === 1 && (
+        <div style={{ padding:"0 16px 12px" }}>
+          <RequestActions r={latest} />
         </div>
       )}
-
-      {/* if collapsed and single request, show inline actions */}
-      {!expanded && group.requests.length === 1 && (() => {
-        const r = latest;
-        const isOwner    = r.ownerUsername === me;
-        const isAcceptor = r.acceptedBy === me;
-        return (
-          <div style={{ padding:"0 16px 12px", display:"flex", gap:6, justifyContent:"flex-end" }}>
-            {r.status==="Open" && !isOwner && (
-              <button className="btn btn-success" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onAccept(r)}>
-                Accept{r.coins>0?` · 💰 ${r.coins}`:""}
-              </button>
-            )}
-            {r.status==="Accepted" && (isOwner||isAcceptor) && (
-              <button className="btn btn-primary" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onChat(r._id)}>💬 Chat</button>
-            )}
-            {isOwner && (
-              <button className="btn btn-danger" style={{ fontSize:12, padding:"6px 12px" }} onClick={() => onDelete(r._id)}>Delete</button>
-            )}
-          </div>
-        );
-      })()}
     </div>
   );
 }
 
-/* section header */
 function SectionHeader({ icon, title, count, color = "#60a5fa" }) {
   return (
     <div style={{ display:"flex", alignItems:"center", gap:10, margin:"20px 0 10px" }}>
@@ -363,14 +168,13 @@ function SectionHeader({ icon, title, count, color = "#60a5fa" }) {
 export default function Exchange() {
   const navigate = useNavigate();
   const me  = myUsername();
-  const uni = myUniversity();
   const { idVerified, emailVerified, isVerified } = useVerification();
 
   const [feed,        setFeed]        = useState({ myUni:[], nearby:[], others:[], myUniversity:"" });
   const [showCreate,  setShowCreate]  = useState(false);
   const [acceptModal, setAcceptModal] = useState(null);
   const [typeFilter,  setTypeFilter]  = useState("All");
-  const [scopeFilter, setScopeFilter] = useState("all"); // all | myuni | mine
+  const [scopeFilter, setScopeFilter] = useState("all");
   const [search,      setSearch]      = useState("");
   const [form,        setForm]        = useState({ title:"", type:"Sell", description:"", category:"books", coins:0 });
   const [loading,     setLoading]     = useState(false);
@@ -424,39 +228,31 @@ export default function Exchange() {
     } catch (e) { alert(e.response?.data?.message || "Failed"); }
   };
 
-  /* apply type + search filter to a list */
   const applyFilter = (list) => list
     .filter(r => typeFilter === "All" || r.type === typeFilter)
     .filter(r => !search || r.title.toLowerCase().includes(search.toLowerCase()) ||
                             r.description.toLowerCase().includes(search.toLowerCase()) ||
                             r.ownerUsername.toLowerCase().includes(search.toLowerCase()));
 
-  /* build display sections based on scope */
   const allRequests = [...feed.myUni, ...feed.nearby, ...feed.others];
-  /* exclude my own requests from all views except "mine" */
-  const othersRequests = allRequests.filter(r => r.ownerUsername !== me);
-  const myRequests     = allRequests.filter(r => r.ownerUsername === me);
+  const myRequests  = allRequests.filter(r => r.ownerUsername === me);
 
   let sections = [];
   if (scopeFilter === "mine") {
     sections = [{ id:"mine", icon:"📋", title:"My Requests", color:"#a78bfa", items: applyFilter(myRequests) }];
   } else if (scopeFilter === "myuni") {
-    const uniOnly = feed.myUni.filter(r => r.ownerUsername !== me);
-    sections = [{ id:"myuni", icon:"🏫", title: feed.myUniversity || "My University", color:"#60a5fa", items: applyFilter(uniOnly) }];
+    sections = [{ id:"myuni", icon:"🏫", title: feed.myUniversity || "My University", color:"#60a5fa", items: applyFilter(feed.myUni.filter(r => r.ownerUsername !== me)) }];
   } else if (scopeFilter === "nearby") {
-    const nearbyOnly = (feed.nearby || []).filter(r => r.ownerUsername !== me);
-    sections = [{ id:"nearby", icon:"📍", title:"Nearby Universities", color:"#4ade80", items: applyFilter(nearbyOnly) }];
+    sections = [{ id:"nearby", icon:"📍", title:"Nearby Universities", color:"#4ade80", items: applyFilter((feed.nearby||[]).filter(r => r.ownerUsername !== me)) }];
   } else if (scopeFilter === "outside") {
-    const outsideOnly = (feed.others || []).filter(r => r.ownerUsername !== me);
-    sections = [{ id:"outside", icon:"🌍", title:"Outside / Other Universities", color:"#f59e0b", items: applyFilter(outsideOnly) }];
+    sections = [{ id:"outside", icon:"🌍", title:"Outside / Other Universities", color:"#f59e0b", items: applyFilter((feed.others||[]).filter(r => r.ownerUsername !== me)) }];
   } else {
-    /* all — show sections, never show my own requests */
-    const myUniFiltered  = applyFilter(feed.myUni.filter(r => r.ownerUsername !== me));
-    const nearbyFiltered = applyFilter((feed.nearby || []).filter(r => r.ownerUsername !== me));
-    const othersFiltered = applyFilter((feed.others || []).filter(r => r.ownerUsername !== me));
-    if (myUniFiltered.length)  sections.push({ id:"myuni",  icon:"🏫", title: feed.myUniversity || "My University", color:"#60a5fa",              items: myUniFiltered });
-    if (nearbyFiltered.length) sections.push({ id:"nearby", icon:"📍", title:"Nearby Universities",                 color:"#4ade80",              items: nearbyFiltered });
-    if (othersFiltered.length) sections.push({ id:"others", icon:"🌍", title:"Other Universities",                  color:"rgba(255,255,255,0.4)", items: othersFiltered });
+    const myUniF  = applyFilter(feed.myUni.filter(r => r.ownerUsername !== me));
+    const nearbyF = applyFilter((feed.nearby||[]).filter(r => r.ownerUsername !== me));
+    const othersF = applyFilter((feed.others||[]).filter(r => r.ownerUsername !== me));
+    if (myUniF.length)  sections.push({ id:"myuni",  icon:"🏫", title: feed.myUniversity || "My University", color:"#60a5fa",              items: myUniF });
+    if (nearbyF.length) sections.push({ id:"nearby", icon:"📍", title:"Nearby Universities",                 color:"#4ade80",              items: nearbyF });
+    if (othersF.length) sections.push({ id:"others", icon:"🌍", title:"Other Universities",                  color:"rgba(255,255,255,0.4)", items: othersF });
     if (!sections.length) sections = [{ id:"all", icon:"📦", title:"All Requests", color:"rgba(255,255,255,0.4)", items: [] }];
   }
 
@@ -464,13 +260,10 @@ export default function Exchange() {
 
   return (
     <div className="dash-page">
-      {/* header */}
       <div className="row-between page-header">
         <div>
           <h1 className="page-title">🔄 Exchange</h1>
-          <p className="page-sub">
-            {feed.myUniversity ? `Showing requests from ${feed.myUniversity} first` : "Buy, sell, lend and borrow with fellow students"}
-          </p>
+          <p className="page-sub">{feed.myUniversity ? `Showing requests from ${feed.myUniversity} first` : "Buy, sell, lend and borrow with fellow students"}</p>
         </div>
         <div style={{ display:"flex", gap:10 }}>
           <button className="btn btn-ghost" onClick={() => navigate("/student/my-requests")}>📋 My Requests</button>
@@ -483,7 +276,7 @@ export default function Exchange() {
       </div>
 
       <VerifyBanner idVerified={idVerified} emailVerified={emailVerified} blockedActions={!isVerified ? ["Post Request", "Accept Request"] : []} />
-      {/* open request warning */}
+
       {myOpenReq && (
         <div style={{ background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.3)", borderRadius:12, padding:"12px 16px", marginBottom:16, display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
           <span style={{ fontSize:18 }}>⚠️</span>
@@ -495,7 +288,6 @@ export default function Exchange() {
         </div>
       )}
 
-      {/* no university warning */}
       {!feed.myUniversity && (
         <div style={{ background:"rgba(59,130,246,0.08)", border:"1px solid rgba(59,130,246,0.2)", borderRadius:12, padding:"12px 16px", marginBottom:16, display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
           <span style={{ fontSize:18 }}>🏫</span>
@@ -507,9 +299,7 @@ export default function Exchange() {
         </div>
       )}
 
-      {/* search + filters */}
       <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
-        {/* search */}
         <div style={{ display:"flex", alignItems:"center", gap:8, background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.09)", borderRadius:12, padding:"0 12px", flex:1, minWidth:200 }}>
           <span style={{ color:"rgba(255,255,255,0.3)", fontSize:14 }}>🔍</span>
           <input style={{ flex:1, background:"none", border:"none", outline:"none", fontFamily:"Outfit,sans-serif", fontSize:13, color:"#fff", padding:"10px 0" }}
@@ -518,23 +308,20 @@ export default function Exchange() {
         </div>
       </div>
 
-      {/* scope chips */}
       <div className="chip-list" style={{ marginBottom:8 }}>
         <span className={`chip ${scopeFilter==="all"?"active":""}`} onClick={() => setScopeFilter("all")}>🌐 All</span>
         {feed.myUniversity && <span className={`chip ${scopeFilter==="myuni"?"active":""}`} onClick={() => setScopeFilter("myuni")}>🏫 My University</span>}
-        {feed.nearby?.length > 0 && <span className={`chip ${scopeFilter==="nearby"?"active":""}`} onClick={() => setScopeFilter("nearby")}>📍 Nearby Universities</span>}
+        {(feed.nearby||[]).length > 0 && <span className={`chip ${scopeFilter==="nearby"?"active":""}`} onClick={() => setScopeFilter("nearby")}>📍 Nearby</span>}
         <span className={`chip ${scopeFilter==="outside"?"active":""}`} onClick={() => setScopeFilter("outside")}>🌍 Outside</span>
         <span className={`chip ${scopeFilter==="mine"?"active":""}`} onClick={() => setScopeFilter("mine")}>👤 Mine</span>
       </div>
 
-      {/* type chips */}
       <div className="chip-list" style={{ marginBottom:20 }}>
         {["All","Sell","Buy","Lend","Borrow"].map(c => (
           <span key={c} className={`chip ${typeFilter===c?"active":""}`} onClick={() => setTypeFilter(c)}>{c}</span>
         ))}
       </div>
 
-      {/* sections */}
       {totalVisible === 0 ? (
         <div className="glass-card">
           <div className="empty-state">
@@ -555,7 +342,7 @@ export default function Exchange() {
                     group={group}
                     me={me}
                     myUni={feed.myUniversity}
-                    onAccept={isVerified ? setAcceptModal : () => alert("ID verification required to accept requests. Upload your ID card in Profile.")}
+                    onAccept={isVerified ? setAcceptModal : () => alert("ID verification required.")}
                     onDelete={handleDelete}
                     onChat={id => navigate(`/student/chat/${id}`)}
                     onVisibility={handleVisibility}
@@ -567,7 +354,6 @@ export default function Exchange() {
         })
       )}
 
-      {/* Accept Modal */}
       {acceptModal && (
         <div className="modal-backdrop" onClick={e => e.target===e.currentTarget && setAcceptModal(null)}>
           <div className="modal-box">
@@ -590,9 +376,7 @@ export default function Exchange() {
               ) : (
                 <div style={{ fontSize:13, color:"#4ade80", padding:"8px 12px", background:"rgba(34,197,94,0.08)", borderRadius:8, marginBottom:14 }}>✅ Free to accept — no coins required</div>
               )}
-              <div style={{ fontSize:13, color:"rgba(255,255,255,0.4)" }}>
-                After accepting, you'll get a private chat with @{acceptModal.ownerUsername}.
-              </div>
+              <div style={{ fontSize:13, color:"rgba(255,255,255,0.4)" }}>After accepting, you'll get a private chat with @{acceptModal.ownerUsername}.</div>
             </div>
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setAcceptModal(null)}>Cancel</button>
@@ -604,7 +388,6 @@ export default function Exchange() {
         </div>
       )}
 
-      {/* Create Modal */}
       {showCreate && (
         <div className="modal-backdrop" onClick={e => e.target===e.currentTarget && setShowCreate(false)}>
           <div className="modal-box">
@@ -641,7 +424,7 @@ export default function Exchange() {
               <div className="form-group">
                 <label className="form-label">Description</label>
                 <textarea className="dash-textarea" placeholder="Describe your item or request..."
-                  style={{ minHeight: 80 }}
+                  style={{ minHeight:80 }}
                   value={form.description} onChange={e => setForm({...form, description:e.target.value})} />
               </div>
               {feed.myUniversity && (
