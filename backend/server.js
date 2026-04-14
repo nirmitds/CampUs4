@@ -1097,12 +1097,7 @@ app.delete("/admin/users/:id/session/:sessionId", verifyToken, adminOnly, async 
 app.put("/admin/users/:id/assign-class", verifyToken, adminOnly, async (req, res) => {
   try {
     const { course, branch, year, semester, section } = req.body;
-    const update = {};
-    if (course   !== undefined) update.course   = course;
-    if (branch   !== undefined) update.branch   = branch;
-    if (year     !== undefined) update.year     = year;
-    if (semester !== undefined) update.semester = semester;
-    if (section  !== undefined) update.section  = section;
+    const update = { course: course || "", branch: branch || "", year: year || "", semester: semester || "", section: section || "" };
     const user = await User.findByIdAndUpdate(req.params.id, update, { new: true })
       .select("name username course branch year semester");
     res.json(user);

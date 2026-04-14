@@ -129,9 +129,11 @@ export default function Admin() {
   const [deleteReqs,   setDeleteReqs]   = useState([]);
   const [resetPwUser,  setResetPwUser]  = useState(null);
   const [resetPwVal,   setResetPwVal]   = useState("");
-  const [assignFac,    setAssignFac]    = useState(null);   // faculty being assigned students
+  const [assignFac,    setAssignFac]    = useState(null);
   const [assignSearch, setAssignSearch] = useState("");
   const [assignSaving, setAssignSaving] = useState(false);
+  const [assignFilter, setAssignFilter] = useState("unassigned"); // unassigned | assigned | all
+  const [assignSelected, setAssignSelected] = useState(new Set());
   const [sessionsUser, setSessionsUser] = useState(null); // show sessions for this userId
   const [loading,      setLoading]      = useState(false);
   const [faculty,      setFaculty]      = useState([]);
@@ -533,89 +535,222 @@ export default function Admin() {
         )}
 
         {/* ── ASSIGN STUDENTS MODAL ── */}
-        {assignFac && (
-          <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", backdropFilter:"blur(8px)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
-            onClick={e => e.target===e.currentTarget && setAssignFac(null)}>
-            <div style={{ background:"#0f0f23", border:"1px solid rgba(255,255,255,0.1)", borderRadius:20, padding:28, width:"100%", maxWidth:560, maxHeight:"85vh", overflowY:"auto" }}>
-              <div style={{ fontSize:17, fontWeight:700, marginBottom:4 }}>👥 Assign Students to {assignFac.name}</div>
-              <div style={{ fontSize:12, color:"rgba(255,255,255,0.35)", marginBottom:16 }}>
-                Select a class to assign students to. This updates the student's course/branch/year/semester to match.
-              </div>
+        {assignFac && (() => {
+          const cls = assignFac._selectedClass !== undefined ? assignFac.classes[assignFac._selectedClass] : null;
+          const sameUniv = users.filter(u => u.role !== "admin" && (!assignFac.university || u.university === assignFac.university));
+          const isAssigned = u => cls && u.course === cls.course && u.branch === cls.branch && u.year === cls.year && u.semester === cls.semester;
+          const searched = sameUniv.filter(u => !assignSearch ||
+            u.name?.toLowerCase().includes(assignSearch.toLowerCase()) ||
+            u.username?.toLowerCase().includes(assignSearch.toLowerCase()) ||
+            u.email?.toLowerCase().includes(assignSearch.toLowerCase()) ||
+            u.rollNo?.toLowerCase().includes(assignSearch.toLowerCase())
+          );
+          const filtered = searched.filter(u =>
+            assignFilter === "assigned"   ? isAssigned(u) :
+            assignFilter === "unassigned" ? !isAssigned(u) : true
+          );
+          const assignedCount = cls ? sameUniv.filter(isAssigned).length : 0;
+          const unassignedCount = cls ? sameUniv.filter(u => !isAssigned(u)).length : 0;
 
-              {/* class selector */}
-              {assignFac.classes?.length > 0 && (
+          const doAssign = async (userId) => {
+            if (!cls) return alert("Select a class first");
+            setAssignSaving(true);
+            try {
+              await axios.put(`${API}/admin/users/${userId}/assign-class`,
+                { course: cls.course, branch: cls.branch, year: cls.year, semester: cls.semester, section: cls.section },
+                { headers: hdrs() });
+              loadAll();
+            } catch (e) { alert(e.response?.data?.message || "Failed"); }
+            finally { setAssignSaving(false); }
+          };
+
+          const doUnassign = async (userId) => {
+            setAssignSaving(true);
+            try {
+              await axios.put(`${API}/admin/users/${userId}/assign-class`,
+                { course: "", branch: "", year: "", semester: "", section: "" },
+                { headers: hdrs() });
+              loadAll();
+            } catch (e) { alert(e.response?.data?.message || "Failed"); }
+            finally { setAssignSaving(false); }
+          };
+
+          const doBulkAssign = async () => {
+            if (!cls) return alert("Select a class first");
+            if (assignSelected.size === 0) return alert("Select students first");
+            setAssignSaving(true);
+            try {
+              await Promise.all([...assignSelected].map(id =>
+                axios.put(`${API}/admin/users/${id}/assign-class`,
+                  { course: cls.course, branch: cls.branch, year: cls.year, semester: cls.semester, section: cls.section },
+                  { headers: hdrs() })
+              ));
+              setAssignSelected(new Set());
+              loadAll();
+            } catch (e) { alert(e.response?.data?.message || "Failed"); }
+            finally { setAssignSaving(false); }
+          };
+
+          return (
+            <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.8)", backdropFilter:"blur(8px)", zIndex:1000, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}
+              onClick={e => e.target===e.currentTarget && setAssignFac(null)}>
+              <div style={{ background:"#0d0d20", border:"1px solid rgba(255,255,255,0.1)", borderRadius:20, padding:24, width:"100%", maxWidth:600, maxHeight:"90vh", display:"flex", flexDirection:"column", gap:0 }}>
+
+                {/* Header */}
                 <div style={{ marginBottom:16 }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:"#22d3ee", marginBottom:8 }}>Select Target Class</div>
-                  <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-                    {assignFac.classes.map((cls, i) => {
-                      const label = [cls.course, cls.branch, cls.year && `Y${cls.year}`, cls.semester && `S${cls.semester}`, cls.section].filter(Boolean).join(" · ");
-                      const isSelected = assignFac._selectedClass === i;
-                      return (
-                        <button key={i}
-                          style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", border:"1px solid rgba(6,182,212,0.3)",
-                            background: isSelected ? "rgba(6,182,212,0.25)" : "rgba(6,182,212,0.08)", color:"#22d3ee" }}
-                          onClick={() => setAssignFac({ ...assignFac, _selectedClass: i })}>
-                          {label}
-                        </button>
-                      );
-                    })}
+                  <div style={{ fontSize:17, fontWeight:800, marginBottom:2 }}>👥 Assign Students</div>
+                  <div style={{ fontSize:13, color:"#22d3ee", fontWeight:600 }}>{assignFac.name}
+                    {assignFac.department && <span style={{ color:"rgba(255,255,255,0.35)", fontWeight:400 }}> · {assignFac.department}</span>}
                   </div>
                 </div>
-              )}
 
-              {/* search students */}
-              <input className="admin-search" style={{ maxWidth:"100%", marginBottom:12 }}
-                placeholder="Search students by name, username, email..."
-                value={assignSearch} onChange={e => setAssignSearch(e.target.value)} />
+                {/* Class selector */}
+                {assignFac.classes?.length > 0 ? (
+                  <div style={{ marginBottom:14 }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.4)", textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Select Target Class</div>
+                    <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                      {assignFac.classes.map((c, i) => {
+                        const label = [c.course, c.branch, c.year && `Y${c.year}`, c.semester && `S${c.semester}`, c.section].filter(Boolean).join(" · ");
+                        const count = users.filter(u => u.role !== "admin" && u.course === c.course && u.branch === c.branch && u.year === c.year && u.semester === c.semester).length;
+                        const sel = assignFac._selectedClass === i;
+                        return (
+                          <button key={i}
+                            style={{ padding:"6px 14px", borderRadius:10, fontSize:12, fontWeight:600, cursor:"pointer",
+                              border: sel ? "1px solid rgba(6,182,212,0.6)" : "1px solid rgba(6,182,212,0.2)",
+                              background: sel ? "rgba(6,182,212,0.2)" : "rgba(6,182,212,0.06)", color: sel ? "#22d3ee" : "rgba(255,255,255,0.5)",
+                              display:"flex", alignItems:"center", gap:6 }}
+                            onClick={() => { setAssignFac({ ...assignFac, _selectedClass: i }); setAssignSelected(new Set()); }}>
+                            {label}
+                            <span style={{ background: sel ? "rgba(6,182,212,0.3)" : "rgba(255,255,255,0.08)", borderRadius:6, padding:"1px 6px", fontSize:10 }}>{count}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ padding:"12px 14px", background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", borderRadius:10, fontSize:12, color:"#f87171", marginBottom:14 }}>
+                    ⚠️ This faculty has no classes assigned. Edit the faculty first to add classes.
+                  </div>
+                )}
 
-              {/* student list */}
-              <div style={{ display:"flex", flexDirection:"column", gap:6, maxHeight:320, overflowY:"auto" }}>
-                {users
-                  .filter(u => u.role !== "admin" && (!assignSearch || u.name?.toLowerCase().includes(assignSearch.toLowerCase()) || u.username?.toLowerCase().includes(assignSearch.toLowerCase()) || u.email?.toLowerCase().includes(assignSearch.toLowerCase())))
-                  .map(u => {
-                    const cls = assignFac._selectedClass !== undefined ? assignFac.classes[assignFac._selectedClass] : null;
-                    const alreadyAssigned = cls && u.course === cls.course && u.branch === cls.branch && u.year === cls.year && u.semester === cls.semester;
+                {/* Stats row */}
+                {cls && (
+                  <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+                    {[
+                      { label:"Assigned", val:assignedCount, color:"#22d3ee" },
+                      { label:"Unassigned", val:unassignedCount, color:"#f59e0b" },
+                      { label:"Total", val:sameUniv.length, color:"rgba(255,255,255,0.5)" },
+                    ].map(s => (
+                      <div key={s.label} style={{ flex:1, padding:"8px 10px", background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:10, textAlign:"center" }}>
+                        <div style={{ fontSize:18, fontWeight:800, color:s.color }}>{s.val}</div>
+                        <div style={{ fontSize:10, color:"rgba(255,255,255,0.35)" }}>{s.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Filter tabs + search */}
+                <div style={{ display:"flex", gap:6, marginBottom:8, flexWrap:"wrap" }}>
+                  {[["unassigned","Unassigned"], ["assigned","Assigned"], ["all","All"]].map(([k,l]) => (
+                    <button key={k}
+                      style={{ padding:"5px 12px", borderRadius:8, fontSize:12, fontWeight:600, cursor:"pointer", border:"none",
+                        background: assignFilter===k ? "rgba(59,130,246,0.25)" : "rgba(255,255,255,0.06)",
+                        color: assignFilter===k ? "#60a5fa" : "rgba(255,255,255,0.45)" }}
+                      onClick={() => setAssignFilter(k)}>{l}</button>
+                  ))}
+                  <input style={{ flex:1, minWidth:160, padding:"5px 12px", background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.09)", borderRadius:8, color:"#fff", fontFamily:"Outfit,sans-serif", fontSize:12, outline:"none" }}
+                    placeholder="Search name, username, roll no..."
+                    value={assignSearch} onChange={e => setAssignSearch(e.target.value)} />
+                </div>
+
+                {/* Bulk assign bar */}
+                {assignSelected.size > 0 && (
+                  <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", background:"rgba(59,130,246,0.1)", border:"1px solid rgba(59,130,246,0.25)", borderRadius:10, marginBottom:8 }}>
+                    <span style={{ fontSize:12, color:"#60a5fa", flex:1 }}>{assignSelected.size} student{assignSelected.size>1?"s":""} selected</span>
+                    <button className="admin-btn admin-btn-blue" style={{ fontSize:11, padding:"4px 12px" }}
+                      disabled={!cls || assignSaving} onClick={doBulkAssign}>
+                      {assignSaving ? "…" : `Assign All (${assignSelected.size})`}
+                    </button>
+                    <button style={{ fontSize:11, padding:"4px 10px", background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:6, color:"rgba(255,255,255,0.5)", cursor:"pointer", fontFamily:"Outfit,sans-serif" }}
+                      onClick={() => setAssignSelected(new Set())}>Clear</button>
+                  </div>
+                )}
+
+                {/* Student list */}
+                <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column", gap:5, maxHeight:320 }}>
+                  {filtered.length === 0 && (
+                    <div style={{ textAlign:"center", padding:32, color:"rgba(255,255,255,0.3)", fontSize:13 }}>
+                      {assignSearch ? "No students match your search" : assignFilter === "assigned" ? "No students assigned to this class yet" : "No students found"}
+                    </div>
+                  )}
+                  {filtered.map(u => {
+                    const assigned = isAssigned(u);
+                    const sel = assignSelected.has(u._id);
                     return (
-                      <div key={u._id} style={{ display:"flex", gap:10, alignItems:"center", padding:"10px 12px", background:"rgba(255,255,255,0.04)", borderRadius:10, border:`1px solid ${alreadyAssigned ? "rgba(6,182,212,0.3)" : "rgba(255,255,255,0.07)"}` }}>
-                        <div style={{ width:32, height:32, borderRadius:"50%", background:"linear-gradient(135deg,#3b82f6,#8b5cf6)", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:13, flexShrink:0 }}>
-                          {u.name?.[0]?.toUpperCase()}
+                      <div key={u._id}
+                        style={{ display:"flex", gap:10, alignItems:"center", padding:"10px 12px", background: sel ? "rgba(59,130,246,0.1)" : "rgba(255,255,255,0.03)", borderRadius:10,
+                          border:`1px solid ${sel ? "rgba(59,130,246,0.35)" : assigned ? "rgba(6,182,212,0.25)" : "rgba(255,255,255,0.06)"}`, cursor:"pointer" }}
+                        onClick={() => {
+                          if (assigned) return;
+                          const next = new Set(assignSelected);
+                          sel ? next.delete(u._id) : next.add(u._id);
+                          setAssignSelected(next);
+                        }}>
+                        {/* checkbox */}
+                        {!assigned && (
+                          <div style={{ width:16, height:16, borderRadius:4, border:`2px solid ${sel ? "#3b82f6" : "rgba(255,255,255,0.2)"}`, background: sel ? "#3b82f6" : "transparent", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                            {sel && <span style={{ color:"#fff", fontSize:10 }}>✓</span>}
+                          </div>
+                        )}
+                        {/* avatar */}
+                        <div style={{ width:34, height:34, borderRadius:"50%", background:"linear-gradient(135deg,#3b82f6,#8b5cf6)", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:13, flexShrink:0, overflow:"hidden" }}>
+                          {u.avatar ? <img src={u.avatar} style={{ width:"100%", height:"100%", objectFit:"cover" }} alt="" /> : u.name?.[0]?.toUpperCase()}
                         </div>
+                        {/* info */}
                         <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontSize:13, fontWeight:600 }}>{u.name}</div>
-                          <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>@{u.username} · {u.course || "No class"} {u.branch} {u.year && `Y${u.year}`} {u.semester && `S${u.semester}`}</div>
+                          <div style={{ fontSize:13, fontWeight:600 }}>{u.name}
+                            {u.rollNo && <span style={{ fontSize:10, color:"rgba(255,255,255,0.35)", marginLeft:6 }}>#{u.rollNo}</span>}
+                          </div>
+                          <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>
+                            @{u.username}
+                            {u.course && <span style={{ marginLeft:6, color:"rgba(255,255,255,0.3)" }}>{[u.course, u.branch, u.year && `Y${u.year}`, u.semester && `S${u.semester}`].filter(Boolean).join(" · ")}</span>}
+                            {!u.course && <span style={{ marginLeft:6, color:"#f59e0b" }}>No class</span>}
+                          </div>
                         </div>
-                        {alreadyAssigned
-                          ? <span style={{ fontSize:11, color:"#22d3ee", fontWeight:600 }}>✓ Assigned</span>
-                          : (
-                            <button className="admin-btn admin-btn-blue" style={{ fontSize:11, padding:"4px 10px", flexShrink:0 }}
-                              disabled={!cls || assignSaving}
-                              onClick={async () => {
-                                if (!cls) return alert("Select a class first");
-                                setAssignSaving(true);
-                                try {
-                                  await axios.put(`${API}/admin/users/${u._id}/assign-class`,
-                                    { course: cls.course, branch: cls.branch, year: cls.year, semester: cls.semester, section: cls.section },
-                                    { headers: hdrs() });
-                                  loadAll(); // refresh users
-                                } catch (e) { alert(e.response?.data?.message || "Failed"); }
-                                finally { setAssignSaving(false); }
-                              }}>
-                              Assign
+                        {/* action */}
+                        {assigned ? (
+                          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                            <span style={{ fontSize:11, color:"#22d3ee", fontWeight:600 }}>✓ Assigned</span>
+                            <button style={{ fontSize:10, padding:"3px 8px", background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.25)", borderRadius:6, color:"#f87171", cursor:"pointer", fontFamily:"Outfit,sans-serif" }}
+                              disabled={assignSaving}
+                              onClick={e => { e.stopPropagation(); doUnassign(u._id); }}>
+                              Remove
                             </button>
-                          )
-                        }
+                          </div>
+                        ) : (
+                          <button className="admin-btn admin-btn-blue" style={{ fontSize:11, padding:"4px 10px", flexShrink:0 }}
+                            disabled={!cls || assignSaving}
+                            onClick={e => { e.stopPropagation(); doAssign(u._id); }}>
+                            {assignSaving ? "…" : "Assign"}
+                          </button>
+                        )}
                       </div>
                     );
                   })}
-              </div>
+                </div>
 
-              <div style={{ display:"flex", justifyContent:"flex-end", marginTop:16 }}>
-                <button className="admin-btn" style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.09)", color:"rgba(255,255,255,0.7)" }}
-                  onClick={() => setAssignFac(null)}>Close</button>
+                {/* Footer */}
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:14, paddingTop:14, borderTop:"1px solid rgba(255,255,255,0.07)" }}>
+                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.3)" }}>
+                    Click a student to select · Bulk assign with checkbox
+                  </div>
+                  <button className="admin-btn" style={{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.09)", color:"rgba(255,255,255,0.7)" }}
+                    onClick={() => { setAssignFac(null); setAssignSelected(new Set()); }}>Close</button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ── FACULTY EDIT MODAL ── */}
         {showEditFac && editingFac && (
