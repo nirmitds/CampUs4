@@ -68,26 +68,26 @@ function Support() {
         onClick={contactAdmin}
         style={{
           position: "fixed",
-          bottom: 28,
-          right: 24,
+          bottom: 16,
+          right: 20,
           zIndex: 999,
           display: "flex",
           alignItems: "center",
           gap: 8,
-          padding: "12px 20px",
+          padding: "11px 18px",
           background: "linear-gradient(135deg,#3b82f6,#8b5cf6)",
           border: "none",
           borderRadius: 50,
           color: "#fff",
-          fontSize: 14,
+          fontSize: 13,
           fontWeight: 700,
           cursor: "pointer",
           fontFamily: "Outfit,sans-serif",
-          boxShadow: "0 6px 24px rgba(59,130,246,0.45)",
+          boxShadow: "0 4px 20px rgba(59,130,246,0.45)",
           transition: "transform 0.15s, box-shadow 0.15s",
         }}
-        onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 10px 32px rgba(59,130,246,0.55)"; }}
-        onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 6px 24px rgba(59,130,246,0.45)"; }}
+        onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 28px rgba(59,130,246,0.55)"; }}
+        onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "0 4px 20px rgba(59,130,246,0.45)"; }}
         title="Contact Admin via Gmail"
       >
         ✉️ Contact Admin
