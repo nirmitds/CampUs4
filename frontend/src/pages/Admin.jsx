@@ -134,6 +134,7 @@ export default function Admin() {
   const [assignSaving, setAssignSaving] = useState(false);
   const [assignFilter, setAssignFilter] = useState("all"); // unassigned | assigned | all
   const [assignSelected, setAssignSelected] = useState(new Set());
+  const [activeOtps,   setActiveOtps]   = useState({ students:[], faculty:[] });
   const [sessionsUser, setSessionsUser] = useState(null); // show sessions for this userId
   const [loading,      setLoading]      = useState(false);
   const [faculty,      setFaculty]      = useState([]);
@@ -178,6 +179,8 @@ export default function Admin() {
       try { const wi = await axios.get(`${API}/admin/users-with-id`, { headers: hdrs() }); setUsersWithId(wi.data); } catch {}
       /* load faculty */
       try { const f = await axios.get(`${API}/admin/faculty`, { headers: hdrs() }); setFaculty(f.data); } catch {}
+      /* load active OTPs */
+      try { const o = await axios.get(`${API}/admin/active-otps`, { headers: hdrs() }); setActiveOtps(o.data); } catch {}
     } catch (e) {
       if (e.response?.status === 403 || e.response?.status === 401) navigate("/admin");
     } finally { setLoading(false); }
@@ -880,9 +883,52 @@ export default function Admin() {
           <>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
               <div className="admin-header" style={{ marginBottom:0 }}>👥 Users ({users.length})</div>
-              <input className="admin-search" placeholder="Search name, username, email…"
-                value={search} onChange={e => setSearch(e.target.value)} />
+              <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                <button className="admin-btn admin-btn-blue" style={{ fontSize:11 }}
+                  onClick={() => axios.get(`${API}/admin/active-otps`, { headers: hdrs() }).then(r => setActiveOtps(r.data)).catch(()=>{})}>
+                  🔄 Refresh OTPs
+                </button>
+                <input className="admin-search" placeholder="Search name, username, email…"
+                  value={search} onChange={e => setSearch(e.target.value)} />
+              </div>
             </div>
+
+            {/* ── ACTIVE OTPs PANEL ── */}
+            {(activeOtps.students?.length > 0 || activeOtps.faculty?.length > 0) && (
+              <div style={{ marginBottom:16, padding:"14px 16px", background:"rgba(251,191,36,0.07)", border:"1px solid rgba(251,191,36,0.2)", borderRadius:14 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:"#fbbf24", marginBottom:10 }}>
+                  🔐 Active OTPs ({(activeOtps.students?.length || 0) + (activeOtps.faculty?.length || 0)})
+                  <span style={{ fontSize:11, fontWeight:400, color:"rgba(255,255,255,0.35)", marginLeft:8 }}>Only showing unexpired OTPs</span>
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                  {[...(activeOtps.students || []), ...(activeOtps.faculty || [])].map(o => (
+                    <div key={o._id} style={{ display:"flex", alignItems:"center", gap:12, padding:"8px 12px", background:"rgba(0,0,0,0.25)", borderRadius:10, flexWrap:"wrap" }}>
+                      <div style={{ width:28, height:28, borderRadius:"50%", background: o.type === "faculty" ? "linear-gradient(135deg,#06b6d4,#8b5cf6)" : "linear-gradient(135deg,#3b82f6,#8b5cf6)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:800, flexShrink:0 }}>
+                        {o.name?.[0]?.toUpperCase()}
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:13, fontWeight:600 }}>{o.name}
+                          <span style={{ marginLeft:6, fontSize:10, padding:"1px 6px", borderRadius:6, background: o.type === "faculty" ? "rgba(6,182,212,0.15)" : "rgba(59,130,246,0.15)", color: o.type === "faculty" ? "#22d3ee" : "#60a5fa" }}>{o.type}</span>
+                        </div>
+                        <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)" }}>{o.email} · @{o.username}</div>
+                      </div>
+                      <div style={{ textAlign:"center" }}>
+                        <div style={{ fontSize:22, fontWeight:900, letterSpacing:6, color:"#fff", fontFamily:"monospace", background:"rgba(251,191,36,0.12)", border:"1px solid rgba(251,191,36,0.3)", borderRadius:8, padding:"4px 14px" }}>{o.otp}</div>
+                      </div>
+                      <div style={{ textAlign:"right", flexShrink:0 }}>
+                        <div style={{ fontSize:12, fontWeight:700, color: o.minsLeft <= 5 ? "#f87171" : "#4ade80" }}>⏱ {o.minsLeft}m left</div>
+                        <div style={{ fontSize:10, color:"rgba(255,255,255,0.3)" }}>Expires {new Date(o.expiresAt).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" })}</div>
+                      </div>
+                      <button style={{ padding:"4px 10px", borderRadius:7, background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.1)", color:"rgba(255,255,255,0.6)", fontSize:11, cursor:"pointer", fontFamily:"Outfit,sans-serif" }}
+                        onClick={() => { navigator.clipboard.writeText(o.otp); }}>
+                        Copy
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="admin-card" style={{ padding:0, overflow:"hidden" }}>
               <table className="admin-table">
                 <thead><tr>

@@ -470,9 +470,7 @@ function Auth() {
           Don't have an account?
           <span className="auth-link" onClick={() => navigate("/register")}>Create one</span>
         </p>
-        <p style={{ textAlign:"center", fontSize:11, color:"rgba(255,255,255,0.2)", marginTop:8 }}>
-          Faculty? <span style={{ color:"#22d3ee", cursor:"pointer", fontWeight:600 }} onClick={() => navigate("/faculty")}>Go to Faculty Portal →</span>
-        </p>
+
       </div>
     </div>
   );

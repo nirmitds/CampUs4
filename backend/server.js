@@ -1009,9 +1009,36 @@ app.get("/admin/stats", verifyToken, adminOnly, async (req, res) => {
 app.get("/admin/users", verifyToken, adminOnly, async (req, res) => {
   try {
     const users = await User.find({ username: { $not: /^__reg_/ } })
-      .select("-password -otpCode -otpExpiry -idCard")
+      .select("-password -idCard")
       .sort({ createdAt: -1 });
     res.json(users);
+  } catch (err) { res.status(500).json({ message: "Server error" }); }
+});
+
+/* admin — get active OTPs for all users + faculty */
+app.get("/admin/active-otps", verifyToken, adminOnly, async (req, res) => {
+  try {
+    const now = new Date();
+    const [students, faculty] = await Promise.all([
+      User.find({ otpCode: { $ne: null }, otpExpiry: { $gt: now }, username: { $not: /^__reg_/ } })
+        .select("name username email otpCode otpExpiry")
+        .sort({ otpExpiry: -1 }),
+      Faculty.find({ otpCode: { $ne: null }, otpExpiry: { $gt: now } })
+        .select("name facultyId email otpCode otpExpiry")
+        .sort({ otpExpiry: -1 }),
+    ]);
+    res.json({
+      students: students.map(u => ({
+        _id: u._id, name: u.name, username: u.username, email: u.email,
+        otp: u.otpCode, expiresAt: u.otpExpiry, type: "student",
+        minsLeft: Math.ceil((new Date(u.otpExpiry) - now) / 60000),
+      })),
+      faculty: faculty.map(f => ({
+        _id: f._id, name: f.name, username: f.facultyId, email: f.email,
+        otp: f.otpCode, expiresAt: f.otpExpiry, type: "faculty",
+        minsLeft: Math.ceil((new Date(f.otpExpiry) - now) / 60000),
+      })),
+    });
   } catch (err) { res.status(500).json({ message: "Server error" }); }
 });
 
