@@ -96,7 +96,7 @@ async function sendSmsOtp(toPhone, otp) {
 
   try {
     await twilioClient.messages.create({
-      body: `🎓 CampUs: Your verification code is ${otp}. Valid for 10 minutes. Never share this code.`,
+      body: `🎓 CampUs: Your verification code is ${otp}. Valid for 20 minutes. Never share this code.`,
       from: process.env.TWILIO_FROM,
       to,
     });
@@ -369,7 +369,7 @@ async function sendOtpEmail(toEmail, otp, type = "login") {
       </div>
       <h2 style="color:#fff;font-size:22px;font-weight:800;margin:0 0 10px;">${isReset ? "Reset your password" : "Your login code"}</h2>
       <p style="color:rgba(255,255,255,0.45);font-size:14px;line-height:1.7;margin:0 0 28px;">
-        ${isReset ? "Use the code below to reset your password. Expires in 15 minutes." : "Use the code below to sign in. Expires in 10 minutes."}
+        ${isReset ? "Use the code below to reset your password. Expires in 15 minutes." : "Use the code below to sign in. Expires in 20 minutes."}
       </p>
       <div style="background:rgba(59,130,246,0.12);border:1px solid rgba(59,130,246,0.3);border-radius:16px;padding:30px;text-align:center;margin-bottom:28px;">
         <div style="font-size:50px;font-weight:900;letter-spacing:16px;color:#fff;font-family:'Courier New',monospace;">${otp}</div>
@@ -574,7 +574,7 @@ app.post("/auth/send-register-otp", async (req, res) => {
     if (trimmed.length < 10) return res.status(400).json({ message: "Enter a valid phone number" });
 
     const otp    = generateOTP();
-    const expiry = new Date(Date.now() + 10 * 60 * 1000);
+    const expiry = new Date(Date.now() + 20 * 60 * 1000);
 
     /* store OTP temporarily keyed by phone — reuse User model's OTP fields */
     let temp = await User.findOne({ phone: trimmed, username: { $regex: /^__reg_/ } });
@@ -694,7 +694,7 @@ app.post("/auth/send-otp", async (req, res) => {
     }
 
     const otp    = generateOTP();
-    const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+    const expiry = new Date(Date.now() + 20 * 60 * 1000); // 20 min
 
     if (user) {
       user.otpCode   = otp;
@@ -2197,7 +2197,7 @@ app.post("/auth/hide-password/send-otp", verifyToken, async (req, res) => {
     }
     
     const otp = generateOTP();
-    const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const expiry = new Date(Date.now() + 20 * 60 * 1000); // 20 minutes
     
     user.otpCode = otp;
     user.otpExpiry = expiry;
@@ -2207,9 +2207,9 @@ app.post("/auth/hide-password/send-otp", verifyToken, async (req, res) => {
     
     const sent = await sendOtpEmail(user.email, otp);
     if (sent) {
-      res.json({ message: "OTP sent to your email", email: user.email, expiresIn: "10 minutes" });
+      res.json({ message: "OTP sent to your email", email: user.email, expiresIn: "20 minutes" });
     } else {
-      res.json({ message: "OTP generated — check server console", email: user.email, expiresIn: "10 minutes" });
+      res.json({ message: "OTP generated — check server console", email: user.email, expiresIn: "20 minutes" });
     }
   } catch (err) { 
     console.error("❌ Send OTP error:", err);
@@ -2573,7 +2573,7 @@ app.post("/faculty/send-verify-otp", verifyFaculty, async (req, res) => {
     if (!faculty.email) return res.status(400).json({ message: "No email on file. Contact admin." });
 
     const otp    = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+    const expiry = new Date(Date.now() + 20 * 60 * 1000); // 20 min
     faculty.otpCode   = otp;
     faculty.otpExpiry = expiry;
     await faculty.save();
