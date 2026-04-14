@@ -115,35 +115,16 @@ function Auth() {
       return setError("Enter a valid email address.");
     setError(""); setSuccess(""); setLoading(true);
     try {
-      const { data } = await axios.post(`${API}/auth/send-otp`, { identifier: val }, { timeout: 25000 });
+      const { data } = await axios.post(`${API}/auth/send-otp`, { identifier: val }, { timeout: 15000 });
       setOtpSent(true);
       setDevMode(data.devMode === true);
       setSuccess(data.message);
       setCooldown(60);
     } catch (err) {
-      if (err.code === "ECONNABORTED" || err.message?.includes("timeout") || err.response?.status === 504) {
-        setError("Server is waking up — please wait 10 seconds and try again.");
-        // Auto-retry after 10s
-        setTimeout(() => {
-          setError("");
-          setSuccess("Retrying automatically…");
-          axios.post(`${API}/auth/send-otp`, { identifier: val }, { timeout: 25000 })
-            .then(({ data }) => {
-              setOtpSent(true);
-              setDevMode(data.devMode === true);
-              setSuccess(data.message);
-              setCooldown(60);
-              setError("");
-            })
-            .catch(e2 => {
-              setSuccess("");
-              setError(e2.response?.data?.message || "Still failing — please try again manually.");
-            })
-            .finally(() => setLoading(false));
-        }, 10000);
-        return; // don't setLoading(false) yet — auto-retry is pending
+      if (err.code === "ECONNABORTED" || err.message?.includes("timeout")) {
+        setError("Server is waking up — please wait 5 seconds and try again.");
       } else if (!err.response) {
-        setError("Cannot reach server. Check your connection or try again.");
+        setError("Cannot reach server. Check your connection.");
       } else {
         setError(err.response?.data?.message || "Failed to send OTP.");
       }

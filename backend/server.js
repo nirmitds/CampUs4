@@ -674,13 +674,6 @@ app.post("/auth/login", async (req, res) => {
    Phone: finds user by phone, sends SMS (Twilio stub)
 ══════════════════════════════════════════════════════ */
 app.post("/auth/send-otp", async (req, res) => {
-  // Set a hard 20s timeout on this route so it never hangs
-  res.setTimeout(20000, () => {
-    if (!res.headersSent) {
-      res.status(504).json({ message: "Request timed out. Server may be waking up — try again in a few seconds." });
-    }
-  });
-
   try {
     const { identifier } = req.body;
     if (!identifier) return res.status(400).json({ message: "Email or phone required" });
@@ -693,17 +686,13 @@ app.post("/auth/send-otp", async (req, res) => {
       return res.status(400).json({ message: "Enter a valid email address or 10-digit phone number" });
     }
 
-    let targetEmail = null;
     let user = null;
 
     if (isEmail) {
       user = await User.findOne({ email: trimmed });
-      targetEmail = trimmed;
     } else {
       user = await User.findOne({ phone: trimmed });
-      if (!user) {
-        return res.status(404).json({ message: "No account found with this phone number" });
-      }
+      if (!user) return res.status(404).json({ message: "No account found with this phone number" });
     }
 
     const otp    = generateOTP();
@@ -714,43 +703,31 @@ app.post("/auth/send-otp", async (req, res) => {
       user.otpExpiry = expiry;
       await user.save();
     } else {
+      // create placeholder for new email
       await User.create({
-        name:     trimmed.split("@")[0],
-        username: "user_" + Date.now(),
-        email:    trimmed,
-        password: null,
-        phone:    "0000000000",
-        otpCode:   otp,
-        otpExpiry: expiry,
+        name: trimmed.split("@")[0], username: "user_" + Date.now(),
+        email: trimmed, password: null, phone: "0000000000",
+        otpCode: otp, otpExpiry: expiry,
       });
     }
 
-    /* send OTP */
-    if (isEmail) {
-      const sentViaEmail = await sendOtpEmail(targetEmail, otp);
-      if (res.headersSent) return;
-      return res.json({
-        message: sentViaEmail
-          ? `OTP sent to ${targetEmail} — check your inbox`
-          : `OTP generated — check the server console (email not configured)`,
-        devMode: !sentViaEmail,
-      });
-    } else {
+    if (isPhone) {
       const result = await sendSmsOtp(trimmed, otp);
-      if (res.headersSent) return;
       return res.json({
-        message: result.sent
-          ? `OTP sent via SMS to ${trimmed}`
-          : `OTP generated — check the server console`,
+        message: result.sent ? `OTP sent via SMS to ${trimmed}` : `OTP generated — check server console`,
         devMode: result.devMode,
       });
     }
 
+    // Respond immediately — send email in background
+    res.json({ message: `OTP sent to ${trimmed} — check your inbox`, devMode: false });
+
+    // Fire-and-forget email (doesn't block response)
+    sendOtpEmail(trimmed, otp).catch(e => console.error("Background email error:", e.message));
+
   } catch (err) {
     console.error("send-otp error:", err);
-    if (!res.headersSent) {
-      res.status(500).json({ message: "Failed to send OTP. " + err.message });
-    }
+    if (!res.headersSent) res.status(500).json({ message: "Failed to send OTP: " + err.message });
   }
 });
 
