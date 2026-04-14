@@ -298,6 +298,26 @@ function Auth() {
                   }}>
                   {loading ? "Resetting…" : "Reset Password →"}
                 </button>
+
+                {/* Contact Admin fallback */}
+                <div style={{ marginTop:14, padding:"12px 14px", background:"rgba(245,158,11,0.07)", border:"1px solid rgba(245,158,11,0.2)", borderRadius:10, textAlign:"center" }}>
+                  <div style={{ fontSize:12, color:"rgba(255,255,255,0.45)", marginBottom:10 }}>
+                    Not receiving OTP?
+                  </div>
+                  <button
+                    onClick={() => {
+                      const msg = `Hi Admin,\n\nI am unable to receive the password reset OTP on my email: ${fpEmail}\n\nPlease help me reset my CampUs password.\n\nThank you.`;
+                      navigator.clipboard.writeText(msg).catch(()=>{});
+                      const gmailUrl = `https://mail.google.com/mail/?view=cm&to=campus4292@gmail.com&su=Password+Reset+OTP+Request+-+CampUs&body=Hi+Admin%2C%0A%0AI+am+unable+to+receive+the+password+reset+OTP+on+my+email%3A+${encodeURIComponent(fpEmail)}%0A%0APlease+help+me+reset+my+CampUs+password.%0A%0AThank+you.`;
+                      window.open(gmailUrl, "_blank");
+                    }}
+                    style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"10px 20px", background:"linear-gradient(135deg,rgba(245,158,11,0.2),rgba(234,88,12,0.15))", border:"1px solid rgba(245,158,11,0.4)", borderRadius:10, color:"#fbbf24", fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"Outfit,sans-serif" }}>
+                    ✉️ Contact Admin for OTP
+                  </button>
+                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.25)", marginTop:8 }}>
+                    Opens Gmail with message pre-filled — just hit Send
+                  </div>
+                </div>
               </>
             )}
             <p className="auth-hint" style={{ marginTop:14, textAlign:"center" }}>
